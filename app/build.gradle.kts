@@ -8,7 +8,6 @@ android {
     compileSdk {
         version = release(37)
     }
-
     defaultConfig {
         applicationId = "com.tany.lecta"
         minSdk = 26
@@ -36,6 +35,7 @@ android {
 }
 
 dependencies {
+    implementation("androidx.compose.material:material-icons-extended")
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.compose.material3)
