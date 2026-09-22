@@ -32,13 +32,19 @@ import com.tany.lecta.ui.theme.LectaTheme
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.layout.layout
+import androidx.compose.material.icons.filled.Menu
+import androidx.core.view.WindowCompat
 
 class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         enableEdgeToEdge()
+        WindowCompat.getInsetsController(window, window.decorView)
+            .hide(androidx.core.view.WindowInsetsCompat.Type.statusBars())
 
         setContent {
             LectaTheme {
@@ -67,6 +73,25 @@ fun TaskBox() {
     )
 }
 
+@Composable
+fun LectaHeader(){
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(52.dp)
+            .background(LectaBackground)
+    ){
+        Icon(
+            imageVector = Icons.Default.Menu,
+            contentDescription = "Menu",
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .padding(start = 16.dp),
+            tint = Color.Black
+        )
+    }
+}
+
 
 @Composable
 fun LectaHome() {
@@ -77,12 +102,11 @@ fun LectaHome() {
             .background(LectaBackground)
     ) {
 
-        val taskStart = (maxHeight / 2) - 30.dp
+        val taskStart = (maxHeight / 2) - 5.dp
 
         Box(
             modifier = Modifier.fillMaxSize()
         ) {
-
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(
@@ -111,6 +135,7 @@ fun LectaHome() {
                     TaskBox()
                 }
             }
+            LectaHeader()
             FloatingActionButton(
                 onClick = {
                     // Add task logic will go here
