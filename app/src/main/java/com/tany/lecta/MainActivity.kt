@@ -6,7 +6,6 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
@@ -30,13 +29,30 @@ import com.tany.lecta.ui.theme.LectaBackground
 import com.tany.lecta.ui.theme.LectaTaskBox
 import com.tany.lecta.ui.theme.LectaTheme
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.layout.layout
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.Text
+import androidx.compose.ui.text.font.FontWeight
 import androidx.core.view.WindowCompat
+import androidx.compose.foundation.layout.Column
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.Text
+import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.material3.CheckboxDefaults
 
 class MainActivity : ComponentActivity() {
 
@@ -57,20 +73,110 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun TaskBox() {
+    var check by remember { mutableStateOf(false) }
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(242.dp)
             .background(
                 color = LectaTaskBox,
-                shape = RoundedCornerShape(9.dp)
+                shape = RoundedCornerShape(14.dp)
             )
             .border(
                 width = 0.2.dp,
                 color = Color.Black,
-                shape = RoundedCornerShape(9.dp)
+                shape = RoundedCornerShape(14.dp)
             )
-    )
+    ){
+        Row(
+            modifier = Modifier.fillMaxSize()
+        ) {
+            //Sec1
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+            )
+            //Div1
+            Box(
+                modifier = Modifier
+                    .width(1.dp)
+                    .fillMaxHeight()
+                    .background(Color(0xFFD3D3D3))
+            )
+            //Sec2 main one
+            Box(
+                modifier = Modifier
+                    .weight(2f)
+                    .fillMaxHeight()
+            )
+            //Div2
+            Box(
+                modifier = Modifier
+                    .width(1.dp)
+                    .fillMaxHeight()
+                    .background(Color(0xFFD3D3D3))
+            )
+
+            // Sec3
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .padding(horizontal = 2.dp, vertical = 12.dp)
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+
+                    // the upper text including confidence and all
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "Confidence",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 11.sp,
+                            lineHeight = 11.sp,
+                            maxLines = 1
+                        )
+
+                        Text(
+                            text = "93%",
+                            fontSize = 11.sp,
+                            lineHeight = 11.sp
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.weight(1f))
+
+                    // Checkbox's code
+                    Checkbox(
+                        checked = check,
+                        onCheckedChange = { check = it },
+                        colors = CheckboxDefaults.colors(
+                            checkedColor = Color.Green,
+                            checkmarkColor = Color.White
+                        )
+                    )
+
+                    Spacer(modifier = Modifier.weight(1f))
+
+                    // last bottom text
+                    Text(
+                        text = "Extracted 3hrs ago",
+                        color = Color.Black.copy(alpha = 0.5f),
+                        fontSize = 10.sp,
+                        lineHeight = 10.sp,
+                        modifier = Modifier
+                            .align(Alignment.CenterHorizontally)
+                            .padding(horizontal = 2.dp)
+                    )
+                }
+            }
+        }
+    }
 }
 
 @Composable
