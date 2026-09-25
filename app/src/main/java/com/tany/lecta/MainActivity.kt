@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
@@ -21,7 +22,6 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
@@ -53,6 +53,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.material3.CheckboxDefaults
+import androidx.compose.ui.res.painterResource
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.focus.focusModifier
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextAlign
 
 class MainActivity : ComponentActivity() {
 
@@ -96,7 +104,37 @@ fun TaskBox() {
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight()
-            )
+                    .padding(
+                        top = 12.dp,
+                        start = 8.dp,
+                        end = 8.dp
+                    )
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(85.dp)
+                ) {
+                    Image(
+                        painter = painterResource(R.drawable.calender),
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+
+                    Text(
+                        text = "25/06/06\nto\n03/09/06",
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .offset(y = 4.dp)
+                            .padding(horizontal = 2.dp),
+                        fontSize = 9.sp,
+                        lineHeight = 9.sp,
+                        color = Color.Black,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
             //Div1
             Box(
                 modifier = Modifier
