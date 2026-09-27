@@ -61,31 +61,47 @@ import androidx.compose.ui.focus.focusModifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.max
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 
 class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        WindowCompat.getInsetsController(window, window.decorView)
-            .hide(androidx.core.view.WindowInsetsCompat.Type.statusBars())
+        WindowCompat.getInsetsController(window, window.decorView).apply {
+            hide(WindowInsetsCompat.Type.statusBars())
+            systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        }
 
         setContent {
             LectaTheme {
                 LectaHome()
             }
         }
+
     }
 }
 
+fun addBreakPoints(text: String): String {
+    return text.replace(
+        Regex("""([\-_/\.])"""),
+        "$1\u200B"
+    )
+}
 
 @Composable
 fun TaskBox() {
+
     var check by remember { mutableStateOf(false) }
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(242.dp)
+            .height(200.dp)
             .background(
                 color = LectaTaskBox,
                 shape = RoundedCornerShape(14.dp)
@@ -147,7 +163,92 @@ fun TaskBox() {
                 modifier = Modifier
                     .weight(2f)
                     .fillMaxHeight()
-            )
+                    .padding(
+                        horizontal = 10.dp,
+                        vertical = 12.dp
+                    )
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxSize()
+                ) {
+
+                    Text(
+                        text = buildAnnotatedString {
+                            withStyle(
+                                style = SpanStyle(
+                                    fontWeight = FontWeight.Bold
+                                )
+                            ) {
+                                append("Task: ")
+                            }
+
+                            append(
+                                addBreakPoints(
+                                    "Pre Medical test for semester - 1 for 20 credits"
+                                )
+                            )
+                        },
+                        fontSize = 13.sp,
+                        lineHeight = 15.sp,
+                        maxLines = 4
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = buildAnnotatedString {
+                                withStyle(
+                                    style = SpanStyle(
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                ) {
+                                    append("Priority: ")
+                                }
+
+                                append("Critical")
+                            },
+                            fontSize = 13.sp,
+                            lineHeight = 15.sp
+                        )
+
+                        Spacer(modifier = Modifier.weight(1f))
+
+                        Box(
+                            modifier = Modifier
+                                .size(11.dp)
+                                .background(
+                                    color = Color(0xFFFF2C2C),
+                                    shape = CircleShape
+                                )
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        text = buildAnnotatedString {
+                            withStyle(
+                                style = SpanStyle(
+                                    fontWeight = FontWeight.Bold
+                                )
+                            ) {
+                                append("Source: ")
+                            }
+
+                            append(
+                                addBreakPoints(
+                                    "Semester-wise-exam.pdf"
+                                )
+                            )
+                        },
+                        fontSize = 13.sp,
+                        lineHeight = 15.sp,
+                        maxLines = 3
+                    )
+                }
+            }
             //Div2
             Box(
                 modifier = Modifier
@@ -246,7 +347,7 @@ fun LectaHome() {
             .background(LectaBackground)
     ) {
 
-        val taskStart = (maxHeight / 2) - 5.dp
+        val taskStart = (maxHeight / 2) + 15.dp
 
         Box(
             modifier = Modifier.fillMaxSize()
