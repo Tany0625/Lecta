@@ -55,8 +55,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.ui.res.painterResource
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.offset
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.focusModifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -66,7 +70,10 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.text.style.TextOverflow
 
 class MainActivity : ComponentActivity() {
 
@@ -290,7 +297,7 @@ fun TaskBox() {
 
                     Spacer(modifier = Modifier.weight(1f))
 
-                    // Checkbox's code
+                    // Checkbox
                     Checkbox(
                         checked = check,
                         onCheckedChange = { check = it },
@@ -313,6 +320,100 @@ fun TaskBox() {
                             .padding(horizontal = 2.dp)
                     )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun NoticeBoard(
+    modifier: Modifier = Modifier
+) {
+
+    var notices by remember {
+        mutableStateOf(
+            listOf(
+                "Robotics lab to be suspended till next week",
+                "Global summit for environmental science on 12/11/2026"
+            )
+        )
+    }
+
+    Box(
+        modifier = modifier
+            .background(
+                color = Color(0xFFFFD6B9),
+                shape = RoundedCornerShape(18.dp)
+            )
+            .border(
+                width = 0.2.dp,
+                color = Color.Black,
+                shape = RoundedCornerShape(18.dp)
+            )
+            .padding(10.dp)
+    ) {
+
+        Column(
+            modifier = Modifier.fillMaxSize()
+        ) {
+
+            // Heading
+            Text(
+                text = "Notice Board",
+                color = Color.Black,
+                fontSize = 15.sp
+            )
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            // Show only one notice
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+            ) {
+
+                Text(
+                    text = "•",
+                    color = Color.Black,
+                    fontSize = 13.sp
+                )
+
+                Spacer(modifier = Modifier.width(4.dp))
+
+                Text(
+                    text = notices.firstOrNull() ?: "No notices",
+                    color = Color.Black,
+                    fontSize = 9.sp,
+                    lineHeight = 11.sp,
+                    maxLines = 4,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            // View all
+            Button(
+                onClick = {
+                    // View all notices later
+                },
+                modifier = Modifier
+                    .align(Alignment.End)
+                    .height(26.dp),
+                shape = RoundedCornerShape(7.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF682E08),
+                    contentColor = Color(0xFFE2CFAE)
+                ),
+                contentPadding = PaddingValues(
+                    horizontal = 9.dp,
+                    vertical = 0.dp
+                )
+            ) {
+                Text(
+                    text = "View all",
+                    fontSize = 9.sp
+                )
             }
         }
     }
@@ -346,41 +447,77 @@ fun LectaHome() {
             .fillMaxSize()
             .background(LectaBackground)
     ) {
+        val noticeBoardWidth = maxWidth * 0.45f
+        val noticeBoardHeight = noticeBoardWidth * (152f / 184f)
 
-        val taskStart = (maxHeight / 2) + 15.dp
+        val noticeBoardBottomGap = 10.dp
+
+        val taskAreaTop = (maxHeight / 2) + 15.dp
 
         Box(
             modifier = Modifier.fillMaxSize()
         ) {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(
-                    start = 16.dp,
-                    end = 16.dp,
-                    bottom = 5.dp
-                ),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+            //noticeboard
+            NoticeBoard(
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(start = 16.dp)
+                    .offset(
+                        y = taskAreaTop -
+                                30.dp -
+                                noticeBoardHeight -
+                                noticeBoardBottomGap
+                    )
+                    .width(noticeBoardWidth)
+                    .height(noticeBoardHeight)
+            )
+            Text(
+                text = "Upcoming Tasks",
+                color = Color.Black,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(
+                        start = 16.dp,
+                        top = taskAreaTop - 30.dp
+                    )
+            )
+            //scroll area
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(this@BoxWithConstraints.maxHeight - taskAreaTop)
+                    .align(Alignment.TopStart)
+                    .offset(y = taskAreaTop)
+                    .clipToBounds()
             ) {
 
-                item {
-                    Spacer(
-                        modifier = Modifier.height(taskStart)
-                    )
-                }
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(
+                        start = 16.dp,
+                        end = 16.dp,
+                        bottom = 5.dp
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
 
-                item {
-                    TaskBox()
-                }
+                    item {
+                        TaskBox()
+                    }
 
-                item {
-                    TaskBox()
-                }
+                    item {
+                        TaskBox()
+                    }
 
-                item {
-                    TaskBox()
+                    item {
+                        TaskBox()
+                    }
                 }
             }
             LectaHeader()
+
             FloatingActionButton(
                 onClick = {
                     // Add task logic will go here
