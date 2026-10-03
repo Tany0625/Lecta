@@ -53,7 +53,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.tany.lecta.ui.theme.LectaBackground
 import java.time.LocalDate
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -70,6 +69,9 @@ fun LectaHome() {
     var profileImage by remember { mutableStateOf(ProfileStore.loadImage(context)) }
     val profilePainter = remember(profileImage) { profileImage?.let { BitmapPainter(it) } }
     var accountOpen by remember { mutableStateOf(false) }
+    var aboutOpen by remember { mutableStateOf(false) }
+    var helpOpen by remember { mutableStateOf(false) }
+    var settingsOpen by remember { mutableStateOf(false) }
 
     val photoLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
@@ -116,6 +118,9 @@ fun LectaHome() {
 
     BackHandler(enabled = noticeExpanded) { noticeExpanded = false }
     BackHandler(enabled = accountOpen) { accountOpen = false }
+    BackHandler(enabled = aboutOpen) { aboutOpen = false }
+    BackHandler(enabled = helpOpen) { helpOpen = false }
+    BackHandler(enabled = settingsOpen) { settingsOpen = false }
 
     val listState = rememberLazyListState()
 
@@ -140,7 +145,7 @@ fun LectaHome() {
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
-            .background(LectaBackground)
+            .background(lectaColors.background)
     ) {
         val noticeBoardBottomGap = 10.dp
 
@@ -192,6 +197,7 @@ fun LectaHome() {
 
                     CalendarBox(
                         tasks = tasks,
+                        sundayStart = AppSettings.sundayStart,
                         modifier = Modifier
                             .weight(1f)
                             .aspectRatio(184f / 152f)
@@ -200,7 +206,7 @@ fun LectaHome() {
 
                 Text(
                     text = "Upcoming Tasks",
-                    color = Color.Black,
+                    color = lectaColors.text,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier
@@ -238,7 +244,7 @@ fun LectaHome() {
                                         text = "No task left",
                                         fontSize = 16.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color.Black.copy(alpha = 0.5f)
+                                        color = lectaColors.text.copy(alpha = 0.5f)
                                     )
                                 }
                             }
@@ -309,8 +315,8 @@ fun LectaHome() {
                             },
                             modifier = Modifier.padding(bottom = 12.dp),
                             shape = CircleShape,
-                            containerColor = Color(0xFFFFD6B9),
-                            contentColor = Color(0xFF682E08)
+                            containerColor = lectaColors.card,
+                            contentColor = lectaColors.accentDark
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Edit,
@@ -336,8 +342,8 @@ fun LectaHome() {
                             },
                             modifier = Modifier.padding(bottom = 12.dp),
                             shape = CircleShape,
-                            containerColor = Color(0xFFFFD6B9),
-                            contentColor = Color(0xFF682E08)
+                            containerColor = lectaColors.card,
+                            contentColor = lectaColors.accentDark
                         ) {
                             Text(
                                 text = "AI",
@@ -350,7 +356,7 @@ fun LectaHome() {
                     FloatingActionButton(
                         onClick = { fabExpanded = !fabExpanded },
                         shape = CircleShape,
-                        containerColor = Color(0xFF8A4A25)
+                        containerColor = lectaColors.accent
                     ) {
                         Icon(
                             imageVector = Icons.Default.Add,
@@ -420,6 +426,41 @@ fun LectaHome() {
             }
 
             AnimatedVisibility(
+                visible = aboutOpen,
+                modifier = Modifier.fillMaxSize(),
+                enter = slideInHorizontally(tween(300, easing = FastOutSlowInEasing)) { it } + fadeIn(tween(300)),
+                exit = slideOutHorizontally(tween(250, easing = FastOutSlowInEasing)) { it } + fadeOut(tween(250))
+            ) {
+                AboutScreen(onBack = { aboutOpen = false })
+            }
+
+            AnimatedVisibility(
+                visible = helpOpen,
+                modifier = Modifier.fillMaxSize(),
+                enter = slideInHorizontally(tween(300, easing = FastOutSlowInEasing)) { it } + fadeIn(tween(300)),
+                exit = slideOutHorizontally(tween(250, easing = FastOutSlowInEasing)) { it } + fadeOut(tween(250))
+            ) {
+                HelpScreen(onBack = { helpOpen = false })
+            }
+
+            AnimatedVisibility(
+                visible = settingsOpen,
+                modifier = Modifier.fillMaxSize(),
+                enter = slideInHorizontally(tween(300, easing = FastOutSlowInEasing)) { it } + fadeIn(tween(300)),
+                exit = slideOutHorizontally(tween(250, easing = FastOutSlowInEasing)) { it } + fadeOut(tween(250))
+            ) {
+                SettingsScreen(
+                    taskCount = tasks.size,
+                    noticeCount = notices.size,
+                    onClearData = {
+                        tasks.clear()
+                        notices.clear()
+                    },
+                    onBack = { settingsOpen = false }
+                )
+            }
+
+            AnimatedVisibility(
                 visible = menuOpen,
                 enter = fadeIn(tween(250)),
                 exit = fadeOut(tween(250))
@@ -448,6 +489,18 @@ fun LectaHome() {
                     onAccount = {
                         menuOpen = false
                         accountOpen = true
+                    },
+                    onAbout = {
+                        menuOpen = false
+                        aboutOpen = true
+                    },
+                    onHelp = {
+                        menuOpen = false
+                        helpOpen = true
+                    },
+                    onSettings = {
+                        menuOpen = false
+                        settingsOpen = true
                     }
                 )
             }

@@ -32,12 +32,14 @@ val centeredTextStyle = TextStyle(
 @Composable
 fun CalendarBox(
     tasks: List<LectaTask>,
+    sundayStart: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val today = LocalDate.now()
     val month = YearMonth.from(today)
 
-    val firstDayOffset = month.atDay(1).dayOfWeek.value - 1
+    val firstWeekday = month.atDay(1).dayOfWeek.value
+    val firstDayOffset = if (sundayStart) firstWeekday % 7 else firstWeekday - 1
     val daysInMonth = month.lengthOfMonth()
 
     val previousMonth = month.minusMonths(1)
@@ -47,8 +49,8 @@ fun CalendarBox(
 
     Box(
         modifier = modifier
-            .background(Color.White, RoundedCornerShape(18.dp))
-            .border(0.2.dp, Color.Black, RoundedCornerShape(18.dp))
+            .background(lectaColors.surface, RoundedCornerShape(18.dp))
+            .border(0.2.dp, lectaColors.text, RoundedCornerShape(18.dp))
             .padding(horizontal = 8.dp, vertical = 6.dp)
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -57,21 +59,21 @@ fun CalendarBox(
                 text = month.month.name.lowercase().replaceFirstChar { it.uppercase() },
                 fontSize = 12.sp,
                 lineHeight = 14.sp,
-                color = Color.Black,
+                color = lectaColors.text,
                 style = centeredTextStyle
             )
 
             Spacer(modifier = Modifier.height(3.dp))
 
             Row(modifier = Modifier.fillMaxWidth()) {
-                listOf("M", "T", "W", "T", "F", "S", "S").forEach { day ->
+                (if (sundayStart) listOf("S", "M", "T", "W", "T", "F", "S") else listOf("M", "T", "W", "T", "F", "S", "S")).forEach { day ->
                     Text(
                         text = day,
                         modifier = Modifier.weight(1f),
                         textAlign = TextAlign.Center,
                         fontSize = 7.sp,
                         lineHeight = 8.sp,
-                        color = Color.Black,
+                        color = lectaColors.text,
                         style = centeredTextStyle
                     )
                 }
@@ -162,8 +164,8 @@ fun CalendarBox(
                                     color = when {
                                         isToday -> Color.White
                                         task != null -> task.priority.textColor
-                                        isCurrentMonth -> Color.Black
-                                        else -> Color.Black.copy(alpha = 0.3f)
+                                        isCurrentMonth -> lectaColors.text
+                                        else -> lectaColors.text.copy(alpha = 0.3f)
                                     },
                                     textAlign = TextAlign.Center,
                                     maxLines = 1,

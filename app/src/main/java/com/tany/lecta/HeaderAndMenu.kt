@@ -29,7 +29,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.tany.lecta.ui.theme.LectaBackground
 
 @Composable
 fun ProfilePicture(
@@ -42,7 +41,7 @@ fun ProfilePicture(
             .size(36.dp)
             .clip(CircleShape)
             .background(Color(0xFF9AA0A6))
-            .border(0.2.dp, Color.Black, CircleShape)
+            .border(0.2.dp, lectaColors.text, CircleShape)
             .clickable { onClick() },
         contentAlignment = Alignment.Center
     ) {
@@ -74,7 +73,7 @@ fun LectaHeader(
         modifier = Modifier
             .fillMaxWidth()
             .height(52.dp)
-            .background(LectaBackground)
+            .background(lectaColors.background)
     ) {
         Icon(
             imageVector = Icons.Default.Menu,
@@ -85,7 +84,7 @@ fun LectaHeader(
                 .clip(CircleShape)
                 .clickable { onMenuClick() }
                 .padding(8.dp),
-            tint = Color.Black
+            tint = lectaColors.text
         )
 
         ProfilePicture(
@@ -116,13 +115,13 @@ fun DrawerItem(
         Icon(
             imageVector = icon,
             contentDescription = label,
-            tint = Color(0xFF682E08)
+            tint = lectaColors.accentDark
         )
         Spacer(modifier = Modifier.width(16.dp))
         Text(
             text = label,
             fontSize = 16.sp,
-            color = Color.Black
+            color = lectaColors.text
         )
     }
 }
@@ -133,6 +132,9 @@ fun SideMenu(
     profileImage: Painter?,
     onClose: () -> Unit,
     onAccount: () -> Unit,
+    onAbout: () -> Unit,
+    onHelp: () -> Unit,
+    onSettings: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -140,7 +142,7 @@ fun SideMenu(
             .fillMaxHeight()
             .width(290.dp)
             .background(
-                LectaBackground,
+                lectaColors.background,
                 RoundedCornerShape(topEnd = 26.dp, bottomEnd = 26.dp)
             )
             .clickable(
@@ -166,7 +168,7 @@ fun SideMenu(
                 text = userName,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color.Black,
+                color = lectaColors.text,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -179,22 +181,22 @@ fun SideMenu(
                 .padding(horizontal = 24.dp)
                 .fillMaxWidth()
                 .height(0.5.dp)
-                .background(Color.Black.copy(alpha = 0.25f))
+                .background(lectaColors.text.copy(alpha = 0.25f))
         )
 
         Spacer(modifier = Modifier.height(12.dp))
 
         DrawerItem(Icons.Default.Person, "Account", onAccount)
-        DrawerItem(Icons.Default.Info, "About the app", onClose)
-        DrawerItem(Icons.Default.Settings, "Settings", onClose)
-        DrawerItem(Icons.Default.Email, "Help & feedback", onClose)
+        DrawerItem(Icons.Default.Info, "About the app", onAbout)
+        DrawerItem(Icons.Default.Settings, "Settings", onSettings)
+        DrawerItem(Icons.Default.Email, "Help & feedback", onHelp)
 
         Spacer(modifier = Modifier.weight(1f))
 
         Text(
             text = "Lecta v1.0",
             fontSize = 11.sp,
-            color = Color.Black.copy(alpha = 0.5f),
+            color = lectaColors.text.copy(alpha = 0.5f),
             modifier = Modifier.padding(horizontal = 24.dp)
         )
     }

@@ -36,7 +36,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import com.tany.lecta.ui.theme.LectaBackground
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -50,15 +49,15 @@ fun NoticeBoard(
 
     Box(
         modifier = modifier
-            .background(Color(0xFFFFD6B9), RoundedCornerShape(18.dp))
-            .border(0.2.dp, Color.Black, RoundedCornerShape(18.dp))
+            .background(lectaColors.card, RoundedCornerShape(18.dp))
+            .border(0.2.dp, lectaColors.text, RoundedCornerShape(18.dp))
             .padding(10.dp)
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
 
             Text(
                 text = "Notice Board",
-                color = Color.Black,
+                color = lectaColors.text,
                 fontSize = 15.sp
             )
 
@@ -72,14 +71,14 @@ fun NoticeBoard(
                 if (first == null) {
                     Text(
                         text = "No notices",
-                        color = Color.Black.copy(alpha = 0.6f),
+                        color = lectaColors.text.copy(alpha = 0.6f),
                         fontSize = 9.sp,
                         lineHeight = 11.sp
                     )
                 } else {
                     Text(
                         text = "•",
-                        color = Color.Black,
+                        color = lectaColors.text,
                         fontSize = 13.sp
                     )
 
@@ -88,7 +87,7 @@ fun NoticeBoard(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = first.text,
-                            color = Color.Black,
+                            color = lectaColors.text,
                             fontSize = 9.sp,
                             lineHeight = 11.sp,
                             maxLines = 3,
@@ -96,7 +95,7 @@ fun NoticeBoard(
                         )
                         Text(
                             text = first.date.format(DateTimeFormatter.ofPattern("dd MMM yyyy")),
-                            color = Color(0xFF682E08),
+                            color = lectaColors.accentDark,
                             fontSize = 8.sp,
                             lineHeight = 10.sp,
                             fontWeight = FontWeight.Bold
@@ -112,8 +111,8 @@ fun NoticeBoard(
                     .height(26.dp),
                 shape = RoundedCornerShape(7.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF682E08),
-                    contentColor = Color(0xFFE2CFAE)
+                    containerColor = lectaColors.accentDark,
+                    contentColor = lectaColors.onAccentDark
                 ),
                 contentPadding = PaddingValues(horizontal = 9.dp, vertical = 0.dp)
             ) {
@@ -136,8 +135,8 @@ fun NoticeBoardFull(
 ) {
     Box(
         modifier = modifier
-            .background(Color(0xFFFFD6B9), RoundedCornerShape(22.dp))
-            .border(0.2.dp, Color.Black, RoundedCornerShape(22.dp))
+            .background(lectaColors.card, RoundedCornerShape(22.dp))
+            .border(0.2.dp, lectaColors.text, RoundedCornerShape(22.dp))
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             Row(
@@ -150,7 +149,7 @@ fun NoticeBoardFull(
                     text = "Notice Board",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.Black
+                    color = lectaColors.text
                 )
 
                 Spacer(modifier = Modifier.weight(1f))
@@ -162,7 +161,7 @@ fun NoticeBoardFull(
                         .clip(CircleShape)
                         .clickable { onClose() }
                         .padding(8.dp),
-                    tint = Color(0xFF682E08)
+                    tint = lectaColors.accentDark
                 )
             }
 
@@ -185,7 +184,7 @@ fun NoticeBoardFull(
                                 text = "No notices yet",
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color.Black.copy(alpha = 0.5f)
+                                color = lectaColors.text.copy(alpha = 0.5f)
                             )
                         }
                     }
@@ -196,8 +195,8 @@ fun NoticeBoardFull(
                         modifier = Modifier
                             .animateItem()
                             .fillMaxWidth()
-                            .background(Color.White, RoundedCornerShape(14.dp))
-                            .border(0.2.dp, Color.Black, RoundedCornerShape(14.dp))
+                            .background(lectaColors.surface, RoundedCornerShape(14.dp))
+                            .border(0.2.dp, lectaColors.text, RoundedCornerShape(14.dp))
                             .padding(start = 14.dp, top = 10.dp, bottom = 12.dp, end = 6.dp),
                         verticalAlignment = Alignment.Top
                     ) {
@@ -210,14 +209,14 @@ fun NoticeBoardFull(
                                 text = notice.date.format(DateTimeFormatter.ofPattern("dd MMM yyyy")),
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF682E08)
+                                color = lectaColors.accentDark
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
                                 text = notice.text,
                                 fontSize = 14.sp,
                                 lineHeight = 19.sp,
-                                color = Color.Black
+                                color = lectaColors.text
                             )
                         }
 
@@ -229,7 +228,7 @@ fun NoticeBoardFull(
                                 .clip(CircleShape)
                                 .clickable { onDelete(notice) }
                                 .padding(7.dp),
-                            tint = Color.Black.copy(alpha = 0.6f)
+                            tint = lectaColors.text.copy(alpha = 0.6f)
                         )
                     }
                 }
@@ -244,8 +243,8 @@ fun NoticeBoardFull(
                 .height(34.dp),
             shape = RoundedCornerShape(50),
             colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFF682E08),
-                contentColor = Color(0xFFE2CFAE)
+                containerColor = lectaColors.accentDark,
+                contentColor = lectaColors.onAccentDark
             ),
             elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp),
             contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp)
@@ -273,7 +272,7 @@ fun AddNoticeDialog(
     var text by remember { mutableStateOf("") }
     var date by remember { mutableStateOf(LocalDate.now()) }
     var showPicker by remember { mutableStateOf(false) }
-    val brown = Color(0xFF8A4A25)
+    val brown = lectaColors.accent
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -283,8 +282,8 @@ fun AddNoticeDialog(
             modifier = Modifier
                 .padding(horizontal = 24.dp)
                 .fillMaxWidth()
-                .background(LectaBackground, RoundedCornerShape(22.dp))
-                .border(0.2.dp, Color.Black, RoundedCornerShape(22.dp))
+                .background(lectaColors.background, RoundedCornerShape(22.dp))
+                .border(0.2.dp, lectaColors.text, RoundedCornerShape(22.dp))
                 .verticalScroll(rememberScrollState())
                 .padding(20.dp)
         ) {
@@ -292,12 +291,12 @@ fun AddNoticeDialog(
                 text = "New Notice",
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color.Black
+                color = lectaColors.text
             )
             Text(
                 text = "Add a notice by hand",
                 fontSize = 12.sp,
-                color = Color.Black.copy(alpha = 0.6f)
+                color = lectaColors.text.copy(alpha = 0.6f)
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -320,13 +319,13 @@ fun AddNoticeDialog(
                 maxLines = 5,
                 shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = Color.White,
-                    unfocusedContainerColor = Color.White,
+                    focusedContainerColor = lectaColors.surface,
+                    unfocusedContainerColor = lectaColors.surface,
                     focusedBorderColor = brown,
-                    unfocusedBorderColor = Color.Black.copy(alpha = 0.4f),
+                    unfocusedBorderColor = lectaColors.text.copy(alpha = 0.4f),
                     cursorColor = brown,
-                    focusedTextColor = Color.Black,
-                    unfocusedTextColor = Color.Black
+                    focusedTextColor = lectaColors.text,
+                    unfocusedTextColor = lectaColors.text
                 )
             )
 

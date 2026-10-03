@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.*
+import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -17,10 +18,21 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         hideStatusBar()
 
+        AppSettings.load(this)
+
         setContent {
             LectaTheme {
-                LectaHome()
+                LectaAppTheme {
+                    LectaHome()
+                }
             }
+        }
+
+        ViewCompat.setOnApplyWindowInsetsListener(window.decorView) { view, insets ->
+            if (insets.isVisible(WindowInsetsCompat.Type.statusBars())) {
+                view.post { hideStatusBar() }
+            }
+            ViewCompat.onApplyWindowInsets(view, insets)
         }
     }
 

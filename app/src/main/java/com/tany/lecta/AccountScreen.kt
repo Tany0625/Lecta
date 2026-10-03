@@ -34,7 +34,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.tany.lecta.ui.theme.LectaBackground
 
 @Composable
 fun AccountScreen(
@@ -50,7 +49,7 @@ fun AccountScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val brown = Color(0xFF8A4A25)
+    val brown = lectaColors.accent
     val focusManager = LocalFocusManager.current
     var draft by remember(userName) { mutableStateOf(userName) }
     val changed = draft.trim() != userName
@@ -58,7 +57,7 @@ fun AccountScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(LectaBackground)
+            .background(lectaColors.background)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null
@@ -79,14 +78,14 @@ fun AccountScreen(
                     .clip(CircleShape)
                     .clickable { onBack() }
                     .padding(6.dp),
-                tint = Color.Black
+                tint = lectaColors.text
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = "Account",
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color.Black
+                color = lectaColors.text
             )
         }
 
@@ -103,7 +102,7 @@ fun AccountScreen(
                     .align(Alignment.BottomEnd)
                     .size(36.dp)
                     .background(brown, CircleShape)
-                    .border(2.dp, LectaBackground, CircleShape)
+                    .border(2.dp, lectaColors.background, CircleShape)
                     .clip(CircleShape)
                     .clickable { onUpload() },
                 contentAlignment = Alignment.Center
@@ -125,8 +124,8 @@ fun AccountScreen(
                 modifier = Modifier.height(38.dp),
                 shape = RoundedCornerShape(50),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF682E08),
-                    contentColor = Color(0xFFE2CFAE)
+                    containerColor = lectaColors.accentDark,
+                    contentColor = lectaColors.onAccentDark
                 ),
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp)
             ) {
@@ -167,13 +166,13 @@ fun AccountScreen(
                 },
                 shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = Color.White,
-                    unfocusedContainerColor = Color.White,
+                    focusedContainerColor = lectaColors.surface,
+                    unfocusedContainerColor = lectaColors.surface,
                     focusedBorderColor = brown,
-                    unfocusedBorderColor = Color.Black.copy(alpha = 0.4f),
+                    unfocusedBorderColor = lectaColors.text.copy(alpha = 0.4f),
                     cursorColor = brown,
-                    focusedTextColor = Color.Black,
-                    unfocusedTextColor = Color.Black
+                    focusedTextColor = lectaColors.text,
+                    unfocusedTextColor = lectaColors.text
                 )
             )
 
@@ -205,15 +204,15 @@ fun AccountScreen(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Color(0xFFFFD6B9), RoundedCornerShape(18.dp))
-                .border(0.2.dp, Color.Black, RoundedCornerShape(18.dp))
+                .background(lectaColors.card, RoundedCornerShape(18.dp))
+                .border(0.2.dp, lectaColors.text, RoundedCornerShape(18.dp))
                 .padding(16.dp)
         ) {
             Text(
                 text = "Your activity",
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color.Black
+                color = lectaColors.text
             )
             Spacer(modifier = Modifier.height(10.dp))
             StatRow("Pending tasks", pendingCount)
@@ -236,14 +235,14 @@ fun StatRow(label: String, value: Int) {
         Text(
             text = label,
             fontSize = 14.sp,
-            color = Color.Black
+            color = lectaColors.text
         )
         Spacer(modifier = Modifier.weight(1f))
         Text(
             text = value.toString(),
             fontSize = 14.sp,
             fontWeight = FontWeight.Bold,
-            color = Color(0xFF682E08)
+            color = lectaColors.accentDark
         )
     }
 }

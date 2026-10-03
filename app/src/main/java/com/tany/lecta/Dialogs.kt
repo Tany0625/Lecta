@@ -47,7 +47,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import com.tany.lecta.ui.theme.LectaBackground
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
@@ -61,7 +60,7 @@ fun FieldLabel(text: String) {
         text = text,
         fontSize = 12.sp,
         fontWeight = FontWeight.Bold,
-        color = Color.Black,
+        color = lectaColors.text,
         modifier = Modifier.padding(bottom = 4.dp)
     )
 }
@@ -89,8 +88,8 @@ fun DateField(
                 .fillMaxWidth()
                 .height(48.dp)
                 .clip(RoundedCornerShape(12.dp))
-                .background(Color.White)
-                .border(1.dp, Color.Black.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
+                .background(lectaColors.surface)
+                .border(1.dp, lectaColors.text.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
                 .clickable { onClick() }
                 .padding(horizontal = 12.dp),
             contentAlignment = Alignment.CenterStart
@@ -98,7 +97,7 @@ fun DateField(
             Text(
                 text = date.format(DateTimeFormatter.ofPattern("dd MMM yyyy")),
                 fontSize = 14.sp,
-                color = Color.Black
+                color = lectaColors.text
             )
         }
     }
@@ -127,12 +126,12 @@ fun DatePickerSheet(
                     }
                 }
             ) {
-                Text("OK", color = Color(0xFF8A4A25))
+                Text("OK", color = lectaColors.accent)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel", color = Color(0xFF8A4A25))
+                Text("Cancel", color = lectaColors.accent)
             }
         }
     ) {
@@ -152,7 +151,7 @@ fun AddTaskDialog(
     var priorityMenu by remember { mutableStateOf(false) }
     var pickerTarget by remember { mutableStateOf(0) }
 
-    val brown = Color(0xFF8A4A25)
+    val brown = lectaColors.accent
     val isSingleDay = startDate == endDate
     val dayCount = ChronoUnit.DAYS.between(startDate, endDate) + 1
 
@@ -164,8 +163,8 @@ fun AddTaskDialog(
             modifier = Modifier
                 .padding(horizontal = 24.dp)
                 .fillMaxWidth()
-                .background(LectaBackground, RoundedCornerShape(22.dp))
-                .border(0.2.dp, Color.Black, RoundedCornerShape(22.dp))
+                .background(lectaColors.background, RoundedCornerShape(22.dp))
+                .border(0.2.dp, lectaColors.text, RoundedCornerShape(22.dp))
                 .verticalScroll(rememberScrollState())
                 .padding(20.dp)
         ) {
@@ -173,12 +172,12 @@ fun AddTaskDialog(
                 text = "New Task",
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color.Black
+                color = lectaColors.text
             )
             Text(
                 text = "Add a task by hand",
                 fontSize = 12.sp,
-                color = Color.Black.copy(alpha = 0.6f)
+                color = lectaColors.text.copy(alpha = 0.6f)
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -201,13 +200,13 @@ fun AddTaskDialog(
                 maxLines = 4,
                 shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = Color.White,
-                    unfocusedContainerColor = Color.White,
+                    focusedContainerColor = lectaColors.surface,
+                    unfocusedContainerColor = lectaColors.surface,
                     focusedBorderColor = brown,
-                    unfocusedBorderColor = Color.Black.copy(alpha = 0.4f),
+                    unfocusedBorderColor = lectaColors.text.copy(alpha = 0.4f),
                     cursorColor = brown,
-                    focusedTextColor = Color.Black,
-                    unfocusedTextColor = Color.Black
+                    focusedTextColor = lectaColors.text,
+                    unfocusedTextColor = lectaColors.text
                 )
             )
 
@@ -220,8 +219,8 @@ fun AddTaskDialog(
                         .fillMaxWidth()
                         .height(48.dp)
                         .clip(RoundedCornerShape(12.dp))
-                        .background(Color.White)
-                        .border(1.dp, Color.Black.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
+                        .background(lectaColors.surface)
+                        .border(1.dp, lectaColors.text.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
                         .clickable { priorityMenu = true }
                         .padding(horizontal = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -231,20 +230,20 @@ fun AddTaskDialog(
                     Text(
                         text = priority.label,
                         fontSize = 14.sp,
-                        color = Color.Black
+                        color = lectaColors.text
                     )
                     Spacer(modifier = Modifier.weight(1f))
                     Icon(
                         imageVector = Icons.Default.ArrowDropDown,
                         contentDescription = "Choose priority",
-                        tint = Color.Black
+                        tint = lectaColors.text
                     )
                 }
 
                 DropdownMenu(
                     expanded = priorityMenu,
                     onDismissRequest = { priorityMenu = false },
-                    containerColor = Color.White
+                    containerColor = lectaColors.surface
                 ) {
                     Priority.values().forEach { option ->
                         DropdownMenuItem(
@@ -252,7 +251,7 @@ fun AddTaskDialog(
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     PriorityDot(option)
                                     Spacer(modifier = Modifier.width(10.dp))
-                                    Text(option.label, fontSize = 14.sp, color = Color.Black)
+                                    Text(option.label, fontSize = 14.sp, color = lectaColors.text)
                                 }
                             },
                             onClick = {
@@ -285,14 +284,14 @@ fun AddTaskDialog(
 
             Box(
                 modifier = Modifier
-                    .background(Color(0xFFFFD6B9), RoundedCornerShape(50))
+                    .background(lectaColors.card, RoundedCornerShape(50))
                     .padding(horizontal = 12.dp, vertical = 5.dp)
             ) {
                 Text(
                     text = if (isSingleDay) "Single-day task" else "Period task · $dayCount days",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF682E08)
+                    color = lectaColors.accentDark
                 )
             }
 
@@ -371,7 +370,7 @@ fun AiTaskDialog(
     onConfirm: (Uri, String) -> Unit
 ) {
     val context = LocalContext.current
-    val brown = Color(0xFF8A4A25)
+    val brown = lectaColors.accent
     var pickedUri by remember { mutableStateOf<Uri?>(null) }
     var pickedName by remember { mutableStateOf("") }
     var pickedType by remember { mutableStateOf("") }
@@ -399,8 +398,8 @@ fun AiTaskDialog(
             modifier = Modifier
                 .padding(horizontal = 24.dp)
                 .fillMaxWidth()
-                .background(LectaBackground, RoundedCornerShape(22.dp))
-                .border(0.2.dp, Color.Black, RoundedCornerShape(22.dp))
+                .background(lectaColors.background, RoundedCornerShape(22.dp))
+                .border(0.2.dp, lectaColors.text, RoundedCornerShape(22.dp))
                 .verticalScroll(rememberScrollState())
                 .padding(20.dp)
         ) {
@@ -408,12 +407,12 @@ fun AiTaskDialog(
                 text = "Let AI add a task",
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color.Black
+                color = lectaColors.text
             )
             Text(
                 text = "Upload a document and AI will find the task",
                 fontSize = 12.sp,
-                color = Color.Black.copy(alpha = 0.6f)
+                color = lectaColors.text.copy(alpha = 0.6f)
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -424,7 +423,7 @@ fun AiTaskDialog(
                     .fillMaxWidth()
                     .height(150.dp)
                     .clip(RoundedCornerShape(16.dp))
-                    .background(Color.White)
+                    .background(lectaColors.surface)
                     .border(1.5.dp, brown.copy(alpha = 0.6f), RoundedCornerShape(16.dp))
                     .clickable { launcher.launch(arrayOf("application/pdf", "image/*")) }
                     .padding(16.dp),
@@ -434,21 +433,21 @@ fun AiTaskDialog(
                     Box(
                         modifier = Modifier
                             .size(44.dp)
-                            .background(Color(0xFFFFD6B9), CircleShape),
+                            .background(lectaColors.card, CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
                         if (pickedUri == null) {
                             Icon(
                                 imageVector = Icons.Default.Add,
                                 contentDescription = "Upload",
-                                tint = Color(0xFF682E08)
+                                tint = lectaColors.accentDark
                             )
                         } else {
                             Text(
                                 text = pickedType,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF682E08)
+                                color = lectaColors.accentDark
                             )
                         }
                     }
@@ -460,19 +459,19 @@ fun AiTaskDialog(
                             text = "Tap to upload",
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color.Black
+                            color = lectaColors.text
                         )
                         Text(
                             text = "PDF or image",
                             fontSize = 11.sp,
-                            color = Color.Black.copy(alpha = 0.6f)
+                            color = lectaColors.text.copy(alpha = 0.6f)
                         )
                     } else {
                         Text(
                             text = pickedName,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color.Black,
+                            color = lectaColors.text,
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
                             textAlign = TextAlign.Center
@@ -480,7 +479,7 @@ fun AiTaskDialog(
                         Text(
                             text = "Tap to change",
                             fontSize = 11.sp,
-                            color = Color.Black.copy(alpha = 0.6f)
+                            color = lectaColors.text.copy(alpha = 0.6f)
                         )
                     }
                 }
@@ -542,7 +541,7 @@ fun ConfirmDeleteDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    val brown = Color(0xFF8A4A25)
+    val brown = lectaColors.accent
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -552,15 +551,15 @@ fun ConfirmDeleteDialog(
             modifier = Modifier
                 .padding(horizontal = 24.dp)
                 .fillMaxWidth()
-                .background(LectaBackground, RoundedCornerShape(22.dp))
-                .border(0.2.dp, Color.Black, RoundedCornerShape(22.dp))
+                .background(lectaColors.background, RoundedCornerShape(22.dp))
+                .border(0.2.dp, lectaColors.text, RoundedCornerShape(22.dp))
                 .padding(20.dp)
         ) {
             Text(
                 text = title,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color.Black
+                color = lectaColors.text
             )
 
             Spacer(modifier = Modifier.height(6.dp))
@@ -568,7 +567,7 @@ fun ConfirmDeleteDialog(
             Text(
                 text = question,
                 fontSize = 14.sp,
-                color = Color.Black.copy(alpha = 0.7f)
+                color = lectaColors.text.copy(alpha = 0.7f)
             )
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -577,13 +576,13 @@ fun ConfirmDeleteDialog(
                 text = preview,
                 fontSize = 13.sp,
                 lineHeight = 17.sp,
-                color = Color.Black,
+                color = lectaColors.text,
                 maxLines = 3,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color.White, RoundedCornerShape(12.dp))
-                    .border(0.2.dp, Color.Black, RoundedCornerShape(12.dp))
+                    .background(lectaColors.surface, RoundedCornerShape(12.dp))
+                    .border(0.2.dp, lectaColors.text, RoundedCornerShape(12.dp))
                     .padding(12.dp)
             )
 

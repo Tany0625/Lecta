@@ -46,7 +46,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.tany.lecta.ui.theme.LectaTaskBox
 import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeoutOrNull
@@ -66,6 +65,7 @@ fun TaskBox(
     modifier: Modifier = Modifier
 ) {
     val haptic = LocalHapticFeedback.current
+    val doneTextColor = lectaColors.text.copy(alpha = 0.5f)
     var showDelete by remember { mutableStateOf(false) }
     var holdTick by remember { mutableStateOf(0) }
     LaunchedEffect(holdTick) {
@@ -108,7 +108,9 @@ fun TaskBox(
                         heldLongEnough = false
                     }
                     if (heldLongEnough) {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        if (AppSettings.haptics) {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        }
                         showDelete = true
                         holdTick++
                     }
@@ -116,8 +118,8 @@ fun TaskBox(
             }
             .fillMaxWidth()
             .height(200.dp)
-            .background(LectaTaskBox, RoundedCornerShape(14.dp))
-            .border(0.2.dp, Color.Black, RoundedCornerShape(14.dp))
+            .background(lectaColors.taskBox, RoundedCornerShape(14.dp))
+            .border(0.2.dp, lectaColors.text, RoundedCornerShape(14.dp))
     ) {
         Row(modifier = Modifier.fillMaxSize()) {
 
@@ -147,7 +149,7 @@ fun TaskBox(
                             .padding(horizontal = 2.dp),
                         fontSize = 9.sp,
                         lineHeight = 9.sp,
-                        color = Color.Black,
+                        color = lectaColors.text,
                         textAlign = TextAlign.Center
                     )
                 }
@@ -157,7 +159,7 @@ fun TaskBox(
                 modifier = Modifier
                     .width(1.dp)
                     .fillMaxHeight()
-                    .background(Color(0xFFD3D3D3))
+                    .background(lectaColors.divider)
             )
 
             Box(
@@ -179,7 +181,7 @@ fun TaskBox(
                                         if (task.done) TextDecoration.LineThrough
                                         else TextDecoration.None,
                                     color =
-                                        if (task.done) Color.Black.copy(alpha = 0.5f)
+                                        if (task.done) doneTextColor
                                         else Color.Unspecified
                                 )
                             ) {
@@ -266,7 +268,7 @@ fun TaskBox(
                 modifier = Modifier
                     .width(1.dp)
                     .fillMaxHeight()
-                    .background(Color(0xFFD3D3D3))
+                    .background(lectaColors.divider)
             )
 
             Box(
@@ -310,7 +312,7 @@ fun TaskBox(
 
                     Text(
                         text = if (task.manual) "Entered ${agoText(task.createdAt)}" else task.extracted,
-                        color = Color.Black.copy(alpha = 0.5f),
+                        color = lectaColors.text.copy(alpha = 0.5f),
                         fontSize = 10.sp,
                         lineHeight = 10.sp,
                         textAlign = TextAlign.Center,

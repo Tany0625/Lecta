@@ -92,7 +92,7 @@ fun GreetingSection(
             fontSize = 19.sp,
             lineHeight = 22.sp,
             fontWeight = FontWeight.Bold,
-            color = Color.Black,
+            color = lectaColors.text,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
@@ -103,7 +103,7 @@ fun GreetingSection(
                 text = summary,
                 fontSize = 11.sp,
                 lineHeight = 14.sp,
-                color = Color.Black.copy(alpha = 0.6f),
+                color = lectaColors.text.copy(alpha = 0.6f),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -120,14 +120,14 @@ fun GreetingSection(
                 fontSize = 10.sp,
                 lineHeight = 12.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color.Black
+                color = lectaColors.text
             )
             Spacer(modifier = Modifier.weight(1f))
             Text(
                 text = "$doneCount of $total done · ${(fraction * 100).toInt()}%",
                 fontSize = 10.sp,
                 lineHeight = 12.sp,
-                color = Color.Black.copy(alpha = 0.6f)
+                color = lectaColors.text.copy(alpha = 0.6f)
             )
         }
 
@@ -138,8 +138,8 @@ fun GreetingSection(
                 .fillMaxWidth()
                 .height(10.dp)
                 .clip(RoundedCornerShape(50))
-                .background(Color.White)
-                .border(0.5.dp, Color.Black.copy(alpha = 0.35f), RoundedCornerShape(50))
+                .background(lectaColors.surface)
+                .border(0.5.dp, lectaColors.text.copy(alpha = 0.35f), RoundedCornerShape(50))
         ) {
             Box(
                 modifier = Modifier

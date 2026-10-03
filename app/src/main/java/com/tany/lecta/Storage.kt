@@ -136,11 +136,11 @@ object NoticeStore {
 object TaskStore {
     private const val PREFS = "lecta_prefs"
     private const val KEY = "tasks"
-    const val EXPIRY_MS = 24L * 60 * 60 * 1000
+    var expiryMs: Long = 24L * 60 * 60 * 1000
 
     fun isExpired(task: LectaTask, now: Long = System.currentTimeMillis()): Boolean {
         val completed = task.completedAt ?: return false
-        return task.done && now - completed >= EXPIRY_MS
+        return task.done && now - completed >= expiryMs
     }
 
     fun load(context: Context): List<LectaTask> {
