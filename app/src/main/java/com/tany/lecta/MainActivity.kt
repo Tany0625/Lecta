@@ -1,9 +1,14 @@
 package com.tany.lecta
 
 import android.content.Context
+import android.net.Uri
 import android.os.Bundle
+import android.provider.OpenableColumns
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
@@ -13,7 +18,9 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
@@ -39,9 +46,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
@@ -74,6 +85,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -141,6 +153,56 @@ data class LectaTask(
     val createdAt: Long = System.currentTimeMillis(),
     val completedAt: Long? = null
 )
+
+const val TASK_TITLE_MAX = 60
+const val NOTICE_TEXT_MAX = 150
+const val HOLD_TO_DELETE_MS = 1000L
+
+data class LectaNotice(
+    val id: Int,
+    val text: String,
+    val date: LocalDate
+)
+
+object NoticeStore {
+    private const val PREFS = "lecta_prefs"
+    private const val KEY = "notices"
+
+    fun load(context: Context): List<LectaNotice> {
+        val raw = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getString(KEY, null) ?: return emptyList()
+        return try {
+            val array = JSONArray(raw)
+            (0 until array.length()).map {
+                val o = array.getJSONObject(it)
+                LectaNotice(
+                    id = o.getInt("id"),
+                    text = o.getString("text"),
+                    date = LocalDate.parse(o.getString("date"))
+                )
+            }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    fun save(context: Context, notices: List<LectaNotice>) {
+        val array = JSONArray()
+        notices.forEach {
+            array.put(
+                JSONObject().apply {
+                    put("id", it.id)
+                    put("text", it.text)
+                    put("date", it.date.toString())
+                }
+            )
+        }
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY, array.toString())
+            .apply()
+    }
+}
 
 object TaskStore {
     private const val PREFS = "lecta_prefs"
@@ -448,7 +510,7 @@ fun TaskBox(
                 awaitEachGesture {
                     awaitFirstDown()
                     var heldLongEnough = true
-                    withTimeoutOrNull(3000L) {
+                    withTimeoutOrNull(HOLD_TO_DELETE_MS) {
                         waitForUpOrCancellation()
                         heldLongEnough = false
                     }
@@ -533,7 +595,8 @@ fun TaskBox(
                         },
                         fontSize = 13.sp,
                         lineHeight = 15.sp,
-                        maxLines = 4
+                        maxLines = 4,
+                        overflow = TextOverflow.Ellipsis
                     )
 
                     Spacer(modifier = Modifier.height(10.dp))
@@ -668,16 +731,11 @@ fun TaskBox(
 
 @Composable
 fun NoticeBoard(
+    notices: List<LectaNotice>,
+    onViewAll: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val notices by remember {
-        mutableStateOf(
-            listOf(
-                "Robotics lab to be suspended till next week",
-                "Global summit for environmental science on 12/11/2026"
-            )
-        )
-    }
+    val first = notices.firstOrNull()
 
     Box(
         modifier = modifier
@@ -700,28 +758,44 @@ fun NoticeBoard(
                     .fillMaxWidth()
                     .weight(1f)
             ) {
-                Text(
-                    text = "•",
-                    color = Color.Black,
-                    fontSize = 13.sp
-                )
+                if (first == null) {
+                    Text(
+                        text = "No notices",
+                        color = Color.Black.copy(alpha = 0.6f),
+                        fontSize = 9.sp,
+                        lineHeight = 11.sp
+                    )
+                } else {
+                    Text(
+                        text = "•",
+                        color = Color.Black,
+                        fontSize = 13.sp
+                    )
 
-                Spacer(modifier = Modifier.width(4.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
 
-                Text(
-                    text = notices.firstOrNull() ?: "No notices",
-                    color = Color.Black,
-                    fontSize = 9.sp,
-                    lineHeight = 11.sp,
-                    maxLines = 4,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
-                )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = first.text,
+                            color = Color.Black,
+                            fontSize = 9.sp,
+                            lineHeight = 11.sp,
+                            maxLines = 3,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = first.date.format(DateTimeFormatter.ofPattern("dd MMM yyyy")),
+                            color = Color(0xFF682E08),
+                            fontSize = 8.sp,
+                            lineHeight = 10.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
             }
 
             Button(
-                onClick = {
-                },
+                onClick = onViewAll,
                 modifier = Modifier
                     .align(Alignment.End)
                     .height(26.dp),
@@ -738,6 +812,266 @@ fun NoticeBoard(
                 )
             }
         }
+    }
+}
+
+@Composable
+fun NoticeBoardFull(
+    notices: List<LectaNotice>,
+    onAdd: () -> Unit,
+    onDelete: (LectaNotice) -> Unit,
+    onClose: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .background(Color(0xFFFFD6B9), RoundedCornerShape(22.dp))
+            .border(0.2.dp, Color.Black, RoundedCornerShape(22.dp))
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 18.dp, end = 10.dp, top = 12.dp, bottom = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Notice Board",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Black
+                )
+
+                Spacer(modifier = Modifier.weight(1f))
+
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "Close notice board",
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .clickable { onClose() }
+                        .padding(8.dp),
+                    tint = Color(0xFF682E08)
+                )
+            }
+
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                contentPadding = PaddingValues(start = 14.dp, end = 14.dp, bottom = 70.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                if (notices.isEmpty()) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(200.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "No notices yet",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.Black.copy(alpha = 0.5f)
+                            )
+                        }
+                    }
+                }
+
+                items(notices, key = { it.id }) { notice ->
+                    Row(
+                        modifier = Modifier
+                            .animateItem()
+                            .fillMaxWidth()
+                            .background(Color.White, RoundedCornerShape(14.dp))
+                            .border(0.2.dp, Color.Black, RoundedCornerShape(14.dp))
+                            .padding(start = 14.dp, top = 10.dp, bottom = 12.dp, end = 6.dp),
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(top = 4.dp)
+                        ) {
+                            Text(
+                                text = notice.date.format(DateTimeFormatter.ofPattern("dd MMM yyyy")),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF682E08)
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = notice.text,
+                                fontSize = 14.sp,
+                                lineHeight = 19.sp,
+                                color = Color.Black
+                            )
+                        }
+
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Delete notice",
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .clickable { onDelete(notice) }
+                                .padding(7.dp),
+                            tint = Color.Black.copy(alpha = 0.6f)
+                        )
+                    }
+                }
+            }
+        }
+
+        Button(
+            onClick = onAdd,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 14.dp)
+                .height(34.dp),
+            shape = RoundedCornerShape(50),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color(0xFF682E08),
+                contentColor = Color(0xFFE2CFAE)
+            ),
+            elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp),
+            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = null,
+                modifier = Modifier.size(15.dp)
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(
+                text = "Add notice",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+    }
+}
+
+@Composable
+fun AddNoticeDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (String, LocalDate) -> Unit
+) {
+    var text by remember { mutableStateOf("") }
+    var date by remember { mutableStateOf(LocalDate.now()) }
+    var showPicker by remember { mutableStateOf(false) }
+    val brown = Color(0xFF8A4A25)
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Column(
+            modifier = Modifier
+                .padding(horizontal = 24.dp)
+                .fillMaxWidth()
+                .background(LectaBackground, RoundedCornerShape(22.dp))
+                .border(0.2.dp, Color.Black, RoundedCornerShape(22.dp))
+                .verticalScroll(rememberScrollState())
+                .padding(20.dp)
+        ) {
+            Text(
+                text = "New Notice",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.Black
+            )
+            Text(
+                text = "Add a notice by hand",
+                fontSize = 12.sp,
+                color = Color.Black.copy(alpha = 0.6f)
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            FieldLabel("Notice")
+            OutlinedTextField(
+                value = text,
+                onValueChange = { text = it.take(NOTICE_TEXT_MAX) },
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = { Text("What is the notice?", fontSize = 14.sp) },
+                supportingText = {
+                    Text(
+                        text = "${text.length}/$NOTICE_TEXT_MAX",
+                        modifier = Modifier.fillMaxWidth(),
+                        textAlign = TextAlign.End,
+                        fontSize = 11.sp
+                    )
+                },
+                minLines = 3,
+                maxLines = 5,
+                shape = RoundedCornerShape(12.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = Color.White,
+                    unfocusedContainerColor = Color.White,
+                    focusedBorderColor = brown,
+                    unfocusedBorderColor = Color.Black.copy(alpha = 0.4f),
+                    cursorColor = brown,
+                    focusedTextColor = Color.Black,
+                    unfocusedTextColor = Color.Black
+                )
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            DateField(
+                label = "Date",
+                date = date,
+                onClick = { showPicker = true },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedButton(
+                    onClick = onDismiss,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(46.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, brown),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = brown)
+                ) {
+                    Text("Cancel", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                }
+
+                Button(
+                    onClick = { onConfirm(text.trim(), date) },
+                    enabled = text.isNotBlank(),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(46.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = brown,
+                        contentColor = Color.White,
+                        disabledContainerColor = brown.copy(alpha = 0.35f),
+                        disabledContentColor = Color.White
+                    )
+                ) {
+                    Text("Confirm", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+    }
+
+    if (showPicker) {
+        DatePickerSheet(
+            initial = date,
+            onPick = { picked ->
+                date = picked
+                showPicker = false
+            },
+            onDismiss = { showPicker = false }
+        )
     }
 }
 
@@ -775,7 +1109,7 @@ fun ProfilePicture(
 }
 
 @Composable
-fun LectaHeader() {
+fun LectaHeader(onMenuClick: () -> Unit = {}) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -787,7 +1121,10 @@ fun LectaHeader() {
             contentDescription = "Menu",
             modifier = Modifier
                 .align(Alignment.CenterStart)
-                .padding(start = 16.dp),
+                .padding(start = 8.dp)
+                .clip(CircleShape)
+                .clickable { onMenuClick() }
+                .padding(8.dp),
             tint = Color.Black
         )
 
@@ -1073,9 +1410,17 @@ fun AddTaskDialog(
             FieldLabel("Task")
             OutlinedTextField(
                 value = title,
-                onValueChange = { title = it },
+                onValueChange = { title = it.take(TASK_TITLE_MAX) },
                 modifier = Modifier.fillMaxWidth(),
                 placeholder = { Text("What needs to be done?", fontSize = 14.sp) },
+                supportingText = {
+                    Text(
+                        text = "${title.length}/$TASK_TITLE_MAX",
+                        modifier = Modifier.fillMaxWidth(),
+                        textAlign = TextAlign.End,
+                        fontSize = 11.sp
+                    )
+                },
                 minLines = 2,
                 maxLines = 4,
                 shape = RoundedCornerShape(12.dp),
@@ -1234,6 +1579,368 @@ fun AddTaskDialog(
     }
 }
 
+private fun fileNameOf(context: Context, uri: Uri): String {
+    context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+        val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+        if (index >= 0 && cursor.moveToFirst()) {
+            return cursor.getString(index)
+        }
+    }
+    return uri.lastPathSegment ?: "Selected file"
+}
+
+@Composable
+fun AiTaskDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (Uri, String) -> Unit
+) {
+    val context = LocalContext.current
+    val brown = Color(0xFF8A4A25)
+    var pickedUri by remember { mutableStateOf<Uri?>(null) }
+    var pickedName by remember { mutableStateOf("") }
+    var pickedType by remember { mutableStateOf("") }
+    var error by remember { mutableStateOf<String?>(null) }
+
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            val type = context.contentResolver.getType(uri) ?: ""
+            if (type == "application/pdf" || type.startsWith("image/")) {
+                pickedUri = uri
+                pickedName = fileNameOf(context, uri)
+                pickedType = if (type == "application/pdf") "PDF" else "IMG"
+                error = null
+            } else {
+                error = "Only PDF or image files are allowed"
+            }
+        }
+    }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Column(
+            modifier = Modifier
+                .padding(horizontal = 24.dp)
+                .fillMaxWidth()
+                .background(LectaBackground, RoundedCornerShape(22.dp))
+                .border(0.2.dp, Color.Black, RoundedCornerShape(22.dp))
+                .verticalScroll(rememberScrollState())
+                .padding(20.dp)
+        ) {
+            Text(
+                text = "Let AI add a task",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.Black
+            )
+            Text(
+                text = "Upload a document and AI will find the task",
+                fontSize = 12.sp,
+                color = Color.Black.copy(alpha = 0.6f)
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            FieldLabel("Upload")
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(150.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(Color.White)
+                    .border(1.5.dp, brown.copy(alpha = 0.6f), RoundedCornerShape(16.dp))
+                    .clickable { launcher.launch(arrayOf("application/pdf", "image/*")) }
+                    .padding(16.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .background(Color(0xFFFFD6B9), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (pickedUri == null) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = "Upload",
+                                tint = Color(0xFF682E08)
+                            )
+                        } else {
+                            Text(
+                                text = pickedType,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF682E08)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    if (pickedUri == null) {
+                        Text(
+                            text = "Tap to upload",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.Black
+                        )
+                        Text(
+                            text = "PDF or image",
+                            fontSize = 11.sp,
+                            color = Color.Black.copy(alpha = 0.6f)
+                        )
+                    } else {
+                        Text(
+                            text = pickedName,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.Black,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            textAlign = TextAlign.Center
+                        )
+                        Text(
+                            text = "Tap to change",
+                            fontSize = 11.sp,
+                            color = Color.Black.copy(alpha = 0.6f)
+                        )
+                    }
+                }
+            }
+
+            if (error != null) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = error ?: "",
+                    fontSize = 12.sp,
+                    color = Color(0xFFFF3B30)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedButton(
+                    onClick = onDismiss,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(46.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, brown),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = brown)
+                ) {
+                    Text("Cancel", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                }
+
+                Button(
+                    onClick = {
+                        val uri = pickedUri
+                        if (uri != null) onConfirm(uri, pickedName)
+                    },
+                    enabled = pickedUri != null,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(46.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = brown,
+                        contentColor = Color.White,
+                        disabledContainerColor = brown.copy(alpha = 0.35f),
+                        disabledContentColor = Color.White
+                    )
+                ) {
+                    Text("Confirm", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DrawerItem(
+    icon: ImageVector,
+    label: String,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .clickable { onClick() }
+            .padding(horizontal = 12.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = label,
+            tint = Color(0xFF682E08)
+        )
+        Spacer(modifier = Modifier.width(16.dp))
+        Text(
+            text = label,
+            fontSize = 16.sp,
+            color = Color.Black
+        )
+    }
+}
+
+@Composable
+fun SideMenu(
+    onClose: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .fillMaxHeight()
+            .width(290.dp)
+            .background(
+                LectaBackground,
+                RoundedCornerShape(topEnd = 26.dp, bottomEnd = 26.dp)
+            )
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) { }
+            .padding(top = 56.dp, bottom = 24.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 24.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            ProfilePicture(modifier = Modifier.size(56.dp))
+            Spacer(modifier = Modifier.width(14.dp))
+            Column {
+                Text(
+                    text = "Tany",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Black
+                )
+                Text(
+                    text = "Lecta",
+                    fontSize = 12.sp,
+                    color = Color.Black.copy(alpha = 0.6f)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Box(
+            modifier = Modifier
+                .padding(horizontal = 24.dp)
+                .fillMaxWidth()
+                .height(0.5.dp)
+                .background(Color.Black.copy(alpha = 0.25f))
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        DrawerItem(Icons.Default.Person, "Account", onClose)
+        DrawerItem(Icons.Default.Info, "About the app", onClose)
+        DrawerItem(Icons.Default.Settings, "Settings", onClose)
+        DrawerItem(Icons.Default.Email, "Help & feedback", onClose)
+
+        Spacer(modifier = Modifier.weight(1f))
+
+        Text(
+            text = "Lecta v1.0",
+            fontSize = 11.sp,
+            color = Color.Black.copy(alpha = 0.5f),
+            modifier = Modifier.padding(horizontal = 24.dp)
+        )
+    }
+}
+
+@Composable
+fun ConfirmDeleteDialog(
+    title: String,
+    question: String,
+    preview: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val brown = Color(0xFF8A4A25)
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Column(
+            modifier = Modifier
+                .padding(horizontal = 24.dp)
+                .fillMaxWidth()
+                .background(LectaBackground, RoundedCornerShape(22.dp))
+                .border(0.2.dp, Color.Black, RoundedCornerShape(22.dp))
+                .padding(20.dp)
+        ) {
+            Text(
+                text = title,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.Black
+            )
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Text(
+                text = question,
+                fontSize = 14.sp,
+                color = Color.Black.copy(alpha = 0.7f)
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text(
+                text = preview,
+                fontSize = 13.sp,
+                lineHeight = 17.sp,
+                color = Color.Black,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color.White, RoundedCornerShape(12.dp))
+                    .border(0.2.dp, Color.Black, RoundedCornerShape(12.dp))
+                    .padding(12.dp)
+            )
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedButton(
+                    onClick = onDismiss,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(46.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, brown),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = brown)
+                ) {
+                    Text("Cancel", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                }
+
+                Button(
+                    onClick = onConfirm,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(46.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFFF3B30),
+                        contentColor = Color.White
+                    )
+                ) {
+                    Text("Delete", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+    }
+}
+
 @Composable
 fun LectaHome() {
 
@@ -1255,10 +1962,34 @@ fun LectaHome() {
         }
     }
 
+    val notices = remember {
+        mutableStateListOf<LectaNotice>().apply { addAll(NoticeStore.load(context)) }
+    }
+
+    LaunchedEffect(Unit) {
+        snapshotFlow { notices.toList() }.collect { NoticeStore.save(context, it) }
+    }
+
+    val todayDate = LocalDate.now()
+    val sortedNotices = notices.sortedWith(
+        compareBy<LectaNotice> { it.date.isBefore(todayDate) }
+            .thenBy { if (it.date.isBefore(todayDate)) -it.date.toEpochDay() else it.date.toEpochDay() }
+    )
+
+    var noticeExpanded by remember { mutableStateOf(false) }
+    var showNoticeDialog by remember { mutableStateOf(false) }
+    var noticeToDelete by remember { mutableStateOf<LectaNotice?>(null) }
+
+    BackHandler(enabled = noticeExpanded) { noticeExpanded = false }
+
     val listState = rememberLazyListState()
 
     var fabExpanded by remember { mutableStateOf(false) }
     var showAddDialog by remember { mutableStateOf(false) }
+    var showAiDialog by remember { mutableStateOf(false) }
+    var menuOpen by remember { mutableStateOf(false) }
+
+    BackHandler(enabled = menuOpen) { menuOpen = false }
     val plusRotation by animateFloatAsState(
         targetValue = if (fabExpanded) 90f else 0f,
         animationSpec = tween(300, easing = FastOutSlowInEasing),
@@ -1298,189 +2029,280 @@ fun LectaHome() {
                 showSummary = greetingHeight >= 80.dp
             )
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-                    .offset(y = noticeTop),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            AnimatedVisibility(
+                visible = !noticeExpanded,
+                modifier = Modifier.fillMaxSize(),
+                enter = fadeIn(tween(300)),
+                exit = fadeOut(tween(250))
             ) {
-                NoticeBoard(
-                    modifier = Modifier
-                        .weight(1f)
-                        .aspectRatio(184f / 152f)
-                )
+                Box(modifier = Modifier.fillMaxSize()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
+                            .offset(y = noticeTop),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        NoticeBoard(
+                            notices = sortedNotices,
+                            onViewAll = {
+                                fabExpanded = false
+                                noticeExpanded = true
+                            },
+                            modifier = Modifier
+                                .weight(1f)
+                                .aspectRatio(184f / 152f)
+                        )
 
-                CalendarBox(
-                    tasks = tasks,
-                    modifier = Modifier
-                        .weight(1f)
-                        .aspectRatio(184f / 152f)
-                )
-            }
+                        CalendarBox(
+                            tasks = tasks,
+                            modifier = Modifier
+                                .weight(1f)
+                                .aspectRatio(184f / 152f)
+                        )
+                    }
 
-            Text(
-                text = "Upcoming Tasks",
-                color = Color.Black,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(start = 16.dp, top = taskAreaTop - 30.dp)
-            )
+                    Text(
+                        text = "Upcoming Tasks",
+                        color = Color.Black,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(start = 16.dp, top = taskAreaTop - 30.dp)
+                    )
 
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(this@BoxWithConstraints.maxHeight - taskAreaTop)
-                    .align(Alignment.TopStart)
-                    .offset(y = taskAreaTop)
-                    .clipToBounds()
-            ) {
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(
-                        start = 16.dp,
-                        end = 16.dp,
-                        bottom = 5.dp
-                    ),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    if (sortedTasks.isEmpty()) {
-                        item {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(160.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = "No task left",
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.Black.copy(alpha = 0.5f)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(this@BoxWithConstraints.maxHeight - taskAreaTop)
+                            .align(Alignment.TopStart)
+                            .offset(y = taskAreaTop)
+                            .clipToBounds()
+                    ) {
+                        LazyColumn(
+                            state = listState,
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(
+                                start = 16.dp,
+                                end = 16.dp,
+                                bottom = 5.dp
+                            ),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            if (sortedTasks.isEmpty()) {
+                                item {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(160.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = "No task left",
+                                            fontSize = 16.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color.Black.copy(alpha = 0.5f)
+                                        )
+                                    }
+                                }
+                            }
+
+                            items(sortedTasks, key = { it.id }) { task ->
+                                TaskBox(
+                                    task = task,
+                                    onToggle = {
+                                        val firstIndex = listState.firstVisibleItemIndex
+                                        val firstOffset = listState.firstVisibleItemScrollOffset
+
+                                        val index = tasks.indexOfFirst { it.id == task.id }
+                                        if (index >= 0) {
+                                            val current = tasks[index]
+                                            tasks[index] = current.copy(
+                                                done = !current.done,
+                                                completedAt = if (current.done) null else System.currentTimeMillis()
+                                            )
+                                        }
+
+                                        listState.requestScrollToItem(firstIndex, firstOffset)
+                                    },
+                                    onDelete = { tasks.removeAll { it.id == task.id } },
+                                    modifier = Modifier.animateItem(
+                                        placementSpec = spring(
+                                            dampingRatio = 0.65f,
+                                            stiffness = Spring.StiffnessLow,
+                                            visibilityThreshold = IntOffset.VisibilityThreshold
+                                        )
+                                    )
                                 )
                             }
                         }
                     }
 
-                    items(sortedTasks, key = { it.id }) { task ->
-                        TaskBox(
-                            task = task,
-                            onToggle = {
-                                val firstIndex = listState.firstVisibleItemIndex
-                                val firstOffset = listState.firstVisibleItemScrollOffset
-
-                                val index = tasks.indexOfFirst { it.id == task.id }
-                                if (index >= 0) {
-                                    val current = tasks[index]
-                                    tasks[index] = current.copy(
-                                        done = !current.done,
-                                        completedAt = if (current.done) null else System.currentTimeMillis()
-                                    )
-                                }
-
-                                listState.requestScrollToItem(firstIndex, firstOffset)
-                            },
-                            onDelete = { tasks.removeAll { it.id == task.id } },
-                            modifier = Modifier.animateItem(
-                                placementSpec = spring(
-                                    dampingRatio = 0.65f,
-                                    stiffness = Spring.StiffnessLow,
-                                    visibilityThreshold = IntOffset.VisibilityThreshold
-                                )
-                            )
+                    if (fabExpanded) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null
+                                ) { fabExpanded = false }
                         )
+                    }
+
+                    Column(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(end = 16.dp, bottom = 16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+
+                        AnimatedVisibility(
+                            visible = fabExpanded,
+                            enter = fadeIn(tween(200, delayMillis = 60)) +
+                                    scaleIn(tween(200, delayMillis = 60)) +
+                                    slideInVertically(tween(250, delayMillis = 60)) { it / 2 },
+                            exit = fadeOut(tween(150)) +
+                                    scaleOut(tween(150)) +
+                                    slideOutVertically(tween(200)) { it / 2 }
+                        ) {
+                            SmallFloatingActionButton(
+                                onClick = {
+                                    fabExpanded = false
+                                    showAddDialog = true
+                                },
+                                modifier = Modifier.padding(bottom = 12.dp),
+                                shape = CircleShape,
+                                containerColor = Color(0xFFFFD6B9),
+                                contentColor = Color(0xFF682E08)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Edit,
+                                    contentDescription = "Add task manually",
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+
+                        AnimatedVisibility(
+                            visible = fabExpanded,
+                            enter = fadeIn(tween(200)) +
+                                    scaleIn(tween(200)) +
+                                    slideInVertically(tween(250)) { it / 2 },
+                            exit = fadeOut(tween(150, delayMillis = 40)) +
+                                    scaleOut(tween(150, delayMillis = 40)) +
+                                    slideOutVertically(tween(200, delayMillis = 40)) { it / 2 }
+                        ) {
+                            SmallFloatingActionButton(
+                                onClick = {
+                                    fabExpanded = false
+                                    showAiDialog = true
+                                },
+                                modifier = Modifier.padding(bottom = 12.dp),
+                                shape = CircleShape,
+                                containerColor = Color(0xFFFFD6B9),
+                                contentColor = Color(0xFF682E08)
+                            ) {
+                                Text(
+                                    text = "AI",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+
+                        FloatingActionButton(
+                            onClick = { fabExpanded = !fabExpanded },
+                            shape = CircleShape,
+                            containerColor = Color(0xFF8A4A25)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = "Add task",
+                                modifier = Modifier.rotate(plusRotation),
+                                tint = Color.White
+                            )
+                        }
                     }
                 }
             }
 
-            LectaHeader()
-
-            if (fabExpanded) {
-                Box(
+            AnimatedVisibility(
+                visible = noticeExpanded,
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .offset(y = noticeTop),
+                enter = fadeIn(tween(300)) + slideInVertically(tween(300)) { it / 10 },
+                exit = fadeOut(tween(200))
+            ) {
+                NoticeBoardFull(
+                    notices = sortedNotices,
+                    onAdd = { showNoticeDialog = true },
+                    onDelete = { notice -> noticeToDelete = notice },
+                    onClose = { noticeExpanded = false },
                     modifier = Modifier
-                        .fillMaxSize()
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null
-                        ) { fabExpanded = false }
+                        .padding(horizontal = 16.dp)
+                        .fillMaxWidth()
+                        .height(this@BoxWithConstraints.maxHeight - noticeTop - 16.dp)
                 )
             }
 
-            Column(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(end = 16.dp, bottom = 16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+            LectaHeader(onMenuClick = { menuOpen = true })
+
+            AnimatedVisibility(
+                visible = menuOpen,
+                enter = fadeIn(tween(250)),
+                exit = fadeOut(tween(250))
             ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.45f))
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) { menuOpen = false }
+                )
+            }
 
-                AnimatedVisibility(
-                    visible = fabExpanded,
-                    enter = fadeIn(tween(200, delayMillis = 60)) +
-                            scaleIn(tween(200, delayMillis = 60)) +
-                            slideInVertically(tween(250, delayMillis = 60)) { it / 2 },
-                    exit = fadeOut(tween(150)) +
-                            scaleOut(tween(150)) +
-                            slideOutVertically(tween(200)) { it / 2 }
-                ) {
-                    SmallFloatingActionButton(
-                        onClick = {
-                            fabExpanded = false
-                            showAddDialog = true
-                        },
-                        modifier = Modifier.padding(bottom = 12.dp),
-                        shape = CircleShape,
-                        containerColor = Color(0xFFFFD6B9),
-                        contentColor = Color(0xFF682E08)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Edit,
-                            contentDescription = "Add task manually",
-                            modifier = Modifier.size(18.dp)
-                        )
+            AnimatedVisibility(
+                visible = menuOpen,
+                modifier = Modifier.align(Alignment.CenterStart),
+                enter = slideInHorizontally(tween(300, easing = FastOutSlowInEasing)) { -it },
+                exit = slideOutHorizontally(tween(250, easing = FastOutSlowInEasing)) { -it }
+            ) {
+                SideMenu(onClose = { menuOpen = false })
+            }
+
+            noticeToDelete?.let { target ->
+                ConfirmDeleteDialog(
+                    title = "Delete notice?",
+                    question = "Are you sure you want to delete this notice?",
+                    preview = target.text,
+                    onConfirm = {
+                        notices.removeAll { it.id == target.id }
+                        noticeToDelete = null
+                    },
+                    onDismiss = { noticeToDelete = null }
+                )
+            }
+
+            if (showNoticeDialog) {
+                AddNoticeDialog(
+                    onDismiss = { showNoticeDialog = false },
+                    onConfirm = { text, date ->
+                        val nextId = (notices.maxOfOrNull { it.id } ?: 0) + 1
+                        notices.add(LectaNotice(id = nextId, text = text, date = date))
+                        showNoticeDialog = false
                     }
-                }
+                )
+            }
 
-                AnimatedVisibility(
-                    visible = fabExpanded,
-                    enter = fadeIn(tween(200)) +
-                            scaleIn(tween(200)) +
-                            slideInVertically(tween(250)) { it / 2 },
-                    exit = fadeOut(tween(150, delayMillis = 40)) +
-                            scaleOut(tween(150, delayMillis = 40)) +
-                            slideOutVertically(tween(200, delayMillis = 40)) { it / 2 }
-                ) {
-                    SmallFloatingActionButton(
-                        onClick = {
-                            fabExpanded = false
-                        },
-                        modifier = Modifier.padding(bottom = 12.dp),
-                        shape = CircleShape,
-                        containerColor = Color(0xFFFFD6B9),
-                        contentColor = Color(0xFF682E08)
-                    ) {
-                        Text(
-                            text = "AI",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-
-                FloatingActionButton(
-                    onClick = { fabExpanded = !fabExpanded },
-                    shape = CircleShape,
-                    containerColor = Color(0xFF8A4A25)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Add task",
-                        modifier = Modifier.rotate(plusRotation),
-                        tint = Color.White
-                    )
-                }
+            if (showAiDialog) {
+                AiTaskDialog(
+                    onDismiss = { showAiDialog = false },
+                    onConfirm = { _, _ -> showAiDialog = false }
+                )
             }
 
             if (showAddDialog) {
