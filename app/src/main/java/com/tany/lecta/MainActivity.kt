@@ -1,10 +1,20 @@
 package com.tany.lecta
 
+import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.VisibilityThreshold
@@ -14,7 +24,13 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -22,13 +38,26 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Button
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -37,13 +66,19 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -59,6 +94,8 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
@@ -67,10 +104,17 @@ import androidx.core.view.WindowInsetsControllerCompat
 import com.tany.lecta.ui.theme.LectaBackground
 import com.tany.lecta.ui.theme.LectaTaskBox
 import com.tany.lecta.ui.theme.LectaTheme
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withTimeoutOrNull
+import org.json.JSONArray
+import org.json.JSONObject
+import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.YearMonth
+import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
-
+import java.time.temporal.ChronoUnit
 
 enum class Priority(
     val label: String,
@@ -92,9 +136,74 @@ data class LectaTask(
     val endDate: LocalDate = startDate,
     val confidence: Int,
     val extracted: String,
-    val done: Boolean = false
+    val done: Boolean = false,
+    val manual: Boolean = false,
+    val createdAt: Long = System.currentTimeMillis(),
+    val completedAt: Long? = null
 )
 
+object TaskStore {
+    private const val PREFS = "lecta_prefs"
+    private const val KEY = "tasks"
+    const val EXPIRY_MS = 24L * 60 * 60 * 1000
+
+    fun isExpired(task: LectaTask, now: Long = System.currentTimeMillis()): Boolean {
+        val completed = task.completedAt ?: return false
+        return task.done && now - completed >= EXPIRY_MS
+    }
+
+    fun load(context: Context): List<LectaTask> {
+        val raw = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getString(KEY, null) ?: return emptyList()
+        return try {
+            val array = JSONArray(raw)
+            (0 until array.length())
+                .map { toTask(array.getJSONObject(it)) }
+                .filter { !isExpired(it) }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    fun save(context: Context, tasks: List<LectaTask>) {
+        val array = JSONArray()
+        tasks.forEach { array.put(toJson(it)) }
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY, array.toString())
+            .apply()
+    }
+
+    private fun toJson(task: LectaTask): JSONObject = JSONObject().apply {
+        put("id", task.id)
+        put("title", task.title)
+        put("source", task.source)
+        put("priority", task.priority.name)
+        put("startDate", task.startDate.toString())
+        put("endDate", task.endDate.toString())
+        put("confidence", task.confidence)
+        put("extracted", task.extracted)
+        put("done", task.done)
+        put("manual", task.manual)
+        put("createdAt", task.createdAt)
+        put("completedAt", task.completedAt ?: JSONObject.NULL)
+    }
+
+    private fun toTask(o: JSONObject): LectaTask = LectaTask(
+        id = o.getInt("id"),
+        title = o.getString("title"),
+        source = o.getString("source"),
+        priority = Priority.valueOf(o.getString("priority")),
+        startDate = LocalDate.parse(o.getString("startDate")),
+        endDate = LocalDate.parse(o.getString("endDate")),
+        confidence = o.getInt("confidence"),
+        extracted = o.getString("extracted"),
+        done = o.getBoolean("done"),
+        manual = o.getBoolean("manual"),
+        createdAt = o.getLong("createdAt"),
+        completedAt = if (o.isNull("completedAt")) null else o.getLong("completedAt")
+    )
+}
 
 class MainActivity : ComponentActivity() {
 
@@ -129,15 +238,12 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-
-
 fun addBreakPoints(text: String): String {
     return text.replace(
         Regex("""([\-_/\.])"""),
         "$1\u200B"
     )
 }
-
 
 @OptIn(ExperimentalTextApi::class)
 private val centeredTextStyle = TextStyle(
@@ -171,6 +277,7 @@ fun CalendarBox(
             .padding(horizontal = 8.dp, vertical = 6.dp)
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
+
             Text(
                 text = month.month.name.lowercase().replaceFirstChar { it.uppercase() },
                 fontSize = 12.sp,
@@ -180,6 +287,7 @@ fun CalendarBox(
             )
 
             Spacer(modifier = Modifier.height(3.dp))
+
             Row(modifier = Modifier.fillMaxWidth()) {
                 listOf("M", "T", "W", "T", "F", "S", "S").forEach { day ->
                     Text(
@@ -196,7 +304,6 @@ fun CalendarBox(
 
             Spacer(modifier = Modifier.height(2.dp))
 
-            // Date
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -227,7 +334,6 @@ fun CalendarBox(
 
                             val isToday = date == today
 
-                            // If several tasks cover this date --
                             val task = tasks
                                 .filter { date >= it.startDate && date <= it.endDate }
                                 .minByOrNull { it.priority.ordinal }
@@ -263,6 +369,7 @@ fun CalendarBox(
                                         )
                                     }
                                 }
+
                                 if (isToday) {
                                     Box(
                                         modifier = Modifier
@@ -271,6 +378,7 @@ fun CalendarBox(
                                             .background(Color(0xFF007AFF), CircleShape)
                                     )
                                 }
+
                                 Text(
                                     text = date.dayOfMonth.toString(),
                                     fontSize = 8.sp,
@@ -299,8 +407,19 @@ fun CalendarBox(
 fun TaskBox(
     task: LectaTask,
     onToggle: () -> Unit,
+    onDelete: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val haptic = LocalHapticFeedback.current
+    var showDelete by remember { mutableStateOf(false) }
+    var holdTick by remember { mutableStateOf(0) }
+    LaunchedEffect(holdTick) {
+        if (holdTick > 0) {
+            delay(5000)
+            showDelete = false
+        }
+    }
+
     val pop = remember { Animatable(0f) }
     var firstRun by remember { mutableStateOf(true) }
     LaunchedEffect(task.done) {
@@ -308,8 +427,8 @@ fun TaskBox(
             firstRun = false
             return@LaunchedEffect
         }
-        pop.animateTo(1f, tween(450, easing = FastOutSlowInEasing))
-        pop.animateTo(0f, tween(800, easing = FastOutSlowInEasing))
+        pop.animateTo(1f, tween(280, easing = FastOutSlowInEasing))
+        pop.animateTo(0f, tween(520, easing = FastOutSlowInEasing))
     }
 
     val fmt = DateTimeFormatter.ofPattern("dd/MM/yy")
@@ -325,6 +444,21 @@ fun TaskBox(
                 scaleX = scale
                 scaleY = scale
             }
+            .pointerInput(Unit) {
+                awaitEachGesture {
+                    awaitFirstDown()
+                    var heldLongEnough = true
+                    withTimeoutOrNull(3000L) {
+                        waitForUpOrCancellation()
+                        heldLongEnough = false
+                    }
+                    if (heldLongEnough) {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        showDelete = true
+                        holdTick++
+                    }
+                }
+            }
             .fillMaxWidth()
             .height(200.dp)
             .background(LectaTaskBox, RoundedCornerShape(14.dp))
@@ -332,7 +466,6 @@ fun TaskBox(
     ) {
         Row(modifier = Modifier.fillMaxSize()) {
 
-            // Sec1
             Box(
                 modifier = Modifier
                     .weight(1f)
@@ -365,7 +498,6 @@ fun TaskBox(
                 }
             }
 
-            // Div1
             Box(
                 modifier = Modifier
                     .width(1.dp)
@@ -373,7 +505,6 @@ fun TaskBox(
                     .background(Color(0xFFD3D3D3))
             )
 
-            // Sec2 - main
             Box(
                 modifier = Modifier
                     .weight(2f)
@@ -444,10 +575,37 @@ fun TaskBox(
                         lineHeight = 15.sp,
                         maxLines = 3
                     )
+
+                    Spacer(modifier = Modifier.weight(1f))
+
+                    AnimatedVisibility(
+                        visible = showDelete,
+                        enter = fadeIn(tween(200)) + scaleIn(tween(200)),
+                        exit = fadeOut(tween(200)) + scaleOut(tween(200))
+                    ) {
+                        Button(
+                            onClick = {
+                                showDelete = false
+                                onDelete()
+                            },
+                            modifier = Modifier.height(26.dp),
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFFFF3B30),
+                                contentColor = Color.White
+                            ),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                        ) {
+                            Text(
+                                text = "Delete task",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
                 }
             }
 
-            // Div2
             Box(
                 modifier = Modifier
                     .width(1.dp)
@@ -475,7 +633,7 @@ fun TaskBox(
                             maxLines = 1
                         )
                         Text(
-                            text = "${task.confidence}%",
+                            text = if (task.manual) "NA" else "${task.confidence}%",
                             fontSize = 11.sp,
                             lineHeight = 11.sp
                         )
@@ -495,7 +653,7 @@ fun TaskBox(
                     Spacer(modifier = Modifier.weight(1f))
 
                     Text(
-                        text = task.extracted,
+                        text = if (task.manual) "Entered ${agoText(task.createdAt)}" else task.extracted,
                         color = Color.Black.copy(alpha = 0.5f),
                         fontSize = 10.sp,
                         lineHeight = 10.sp,
@@ -507,7 +665,6 @@ fun TaskBox(
         }
     }
 }
-
 
 @Composable
 fun NoticeBoard(
@@ -587,14 +744,14 @@ fun NoticeBoard(
 @Composable
 fun ProfilePicture(
     modifier: Modifier = Modifier,
-    image: Painter? = null,          // pass a real photo latter
+    image: Painter? = null,
     onClick: () -> Unit = {}
 ) {
     Box(
         modifier = modifier
             .size(36.dp)
             .clip(CircleShape)
-            .background(Color(0xFF9AA0A6))   // default avatar
+            .background(Color(0xFF9AA0A6))
             .border(0.2.dp, Color.Black, CircleShape)
             .clickable { onClick() },
         contentAlignment = Alignment.Center
@@ -639,8 +796,440 @@ fun LectaHeader() {
                 .align(Alignment.CenterEnd)
                 .padding(end = 16.dp),
             onClick = {
-                // profile click karne ke baad action
             }
+        )
+    }
+}
+
+private fun greetingFor(hour: Int): String = when {
+    hour < 12 -> "Good morning"
+    hour < 17 -> "Good afternoon"
+    else -> "Good evening"
+}
+
+private fun dueText(days: Long): String = when {
+    days < 0 -> "overdue"
+    days == 0L -> "today"
+    days == 1L -> "tomorrow"
+    else -> "in $days days"
+}
+
+private fun progressColor(fraction: Float): Color = when {
+    fraction >= 1f -> Color(0xFF34C759)
+    fraction >= 0.75f -> Color(0xFF9ACD32)
+    fraction >= 0.5f -> Color(0xFFFFD60A)
+    fraction >= 0.25f -> Color(0xFFFF9500)
+    else -> Color(0xFFFF3B30)
+}
+
+@Composable
+fun GreetingSection(
+    tasks: List<LectaTask>,
+    modifier: Modifier = Modifier,
+    userName: String = "Tany",
+    showSummary: Boolean = true
+) {
+    val today = LocalDate.now()
+    val total = tasks.size
+    val doneCount = tasks.count { it.done }
+    val pending = tasks.filter { !it.done }
+    val criticals = pending.filter { it.priority == Priority.Critical }
+    val nextCritical = criticals.minByOrNull { it.startDate }
+
+    val summary = when {
+        total == 0 -> "No tasks yet - tap + to add one"
+        pending.isEmpty() -> "All tasks done - nice work!"
+        else -> {
+            val base = "${pending.size} ${if (pending.size == 1) "task" else "tasks"} pending"
+            if (nextCritical != null) {
+                val days = ChronoUnit.DAYS.between(today, nextCritical.startDate)
+                base + " · ${criticals.size} critical, next due ${dueText(days)}"
+            } else base
+        }
+    }
+
+    val fraction = if (total == 0) 0f else doneCount.toFloat() / total
+    val animatedFraction by animateFloatAsState(
+        targetValue = fraction,
+        animationSpec = tween(600, easing = FastOutSlowInEasing),
+        label = "progressFraction"
+    )
+    val barColor by animateColorAsState(
+        targetValue = progressColor(fraction),
+        animationSpec = tween(600),
+        label = "progressColor"
+    )
+
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text(
+            text = "${greetingFor(LocalTime.now().hour)}, $userName",
+            fontSize = 19.sp,
+            lineHeight = 22.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color.Black,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+
+        if (showSummary) {
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = summary,
+                fontSize = 11.sp,
+                lineHeight = 14.sp,
+                color = Color.Black.copy(alpha = 0.6f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Progress",
+                fontSize = 10.sp,
+                lineHeight = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.Black
+            )
+            Spacer(modifier = Modifier.weight(1f))
+            Text(
+                text = "$doneCount of $total done · ${(fraction * 100).toInt()}%",
+                fontSize = 10.sp,
+                lineHeight = 12.sp,
+                color = Color.Black.copy(alpha = 0.6f)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(10.dp)
+                .clip(RoundedCornerShape(50))
+                .background(Color.White)
+                .border(0.5.dp, Color.Black.copy(alpha = 0.35f), RoundedCornerShape(50))
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(animatedFraction)
+                    .fillMaxHeight()
+                    .clip(RoundedCornerShape(50))
+                    .background(barColor)
+            )
+        }
+    }
+}
+
+fun agoText(createdAt: Long): String {
+    val minutes = (System.currentTimeMillis() - createdAt) / 60000
+    return when {
+        minutes < 1 -> "just now"
+        minutes < 60 -> "$minutes min ago"
+        minutes < 1440 -> {
+            val hours = minutes / 60
+            "$hours${if (hours == 1L) "hr" else "hrs"} ago"
+        }
+        else -> "${minutes / 1440}d ago"
+    }
+}
+
+@Composable
+private fun FieldLabel(text: String) {
+    Text(
+        text = text,
+        fontSize = 12.sp,
+        fontWeight = FontWeight.Bold,
+        color = Color.Black,
+        modifier = Modifier.padding(bottom = 4.dp)
+    )
+}
+
+@Composable
+private fun PriorityDot(priority: Priority) {
+    Box(
+        modifier = Modifier
+            .size(12.dp)
+            .background(priority.color, CircleShape)
+    )
+}
+
+@Composable
+private fun DateField(
+    label: String,
+    date: LocalDate,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier) {
+        FieldLabel(label)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(48.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(Color.White)
+                .border(1.dp, Color.Black.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
+                .clickable { onClick() }
+                .padding(horizontal = 12.dp),
+            contentAlignment = Alignment.CenterStart
+        ) {
+            Text(
+                text = date.format(DateTimeFormatter.ofPattern("dd MMM yyyy")),
+                fontSize = 14.sp,
+                color = Color.Black
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DatePickerSheet(
+    initial: LocalDate,
+    onPick: (LocalDate) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val state = rememberDatePickerState(
+        initialSelectedDateMillis = initial.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+    )
+    DatePickerDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    val millis = state.selectedDateMillis
+                    if (millis != null) {
+                        onPick(Instant.ofEpochMilli(millis).atZone(ZoneOffset.UTC).toLocalDate())
+                    } else {
+                        onDismiss()
+                    }
+                }
+            ) {
+                Text("OK", color = Color(0xFF8A4A25))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel", color = Color(0xFF8A4A25))
+            }
+        }
+    ) {
+        DatePicker(state = state)
+    }
+}
+
+@Composable
+fun AddTaskDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (String, Priority, LocalDate, LocalDate) -> Unit
+) {
+    var title by remember { mutableStateOf("") }
+    var priority by remember { mutableStateOf(Priority.Medium) }
+    var startDate by remember { mutableStateOf(LocalDate.now()) }
+    var endDate by remember { mutableStateOf(LocalDate.now()) }
+    var priorityMenu by remember { mutableStateOf(false) }
+    var pickerTarget by remember { mutableStateOf(0) }
+
+    val brown = Color(0xFF8A4A25)
+    val isSingleDay = startDate == endDate
+    val dayCount = ChronoUnit.DAYS.between(startDate, endDate) + 1
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Column(
+            modifier = Modifier
+                .padding(horizontal = 24.dp)
+                .fillMaxWidth()
+                .background(LectaBackground, RoundedCornerShape(22.dp))
+                .border(0.2.dp, Color.Black, RoundedCornerShape(22.dp))
+                .verticalScroll(rememberScrollState())
+                .padding(20.dp)
+        ) {
+            Text(
+                text = "New Task",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.Black
+            )
+            Text(
+                text = "Add a task by hand",
+                fontSize = 12.sp,
+                color = Color.Black.copy(alpha = 0.6f)
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            FieldLabel("Task")
+            OutlinedTextField(
+                value = title,
+                onValueChange = { title = it },
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = { Text("What needs to be done?", fontSize = 14.sp) },
+                minLines = 2,
+                maxLines = 4,
+                shape = RoundedCornerShape(12.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = Color.White,
+                    unfocusedContainerColor = Color.White,
+                    focusedBorderColor = brown,
+                    unfocusedBorderColor = Color.Black.copy(alpha = 0.4f),
+                    cursorColor = brown,
+                    focusedTextColor = Color.Black,
+                    unfocusedTextColor = Color.Black
+                )
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            FieldLabel("Priority")
+            Box {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color.White)
+                        .border(1.dp, Color.Black.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
+                        .clickable { priorityMenu = true }
+                        .padding(horizontal = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    PriorityDot(priority)
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = priority.label,
+                        fontSize = 14.sp,
+                        color = Color.Black
+                    )
+                    Spacer(modifier = Modifier.weight(1f))
+                    Icon(
+                        imageVector = Icons.Default.ArrowDropDown,
+                        contentDescription = "Choose priority",
+                        tint = Color.Black
+                    )
+                }
+
+                DropdownMenu(
+                    expanded = priorityMenu,
+                    onDismissRequest = { priorityMenu = false },
+                    containerColor = Color.White
+                ) {
+                    Priority.values().forEach { option ->
+                        DropdownMenuItem(
+                            text = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    PriorityDot(option)
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Text(option.label, fontSize = 14.sp, color = Color.Black)
+                                }
+                            },
+                            onClick = {
+                                priority = option
+                                priorityMenu = false
+                            }
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                DateField(
+                    label = "Start date",
+                    date = startDate,
+                    onClick = { pickerTarget = 1 },
+                    modifier = Modifier.weight(1f)
+                )
+                DateField(
+                    label = "End date",
+                    date = endDate,
+                    onClick = { pickerTarget = 2 },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Box(
+                modifier = Modifier
+                    .background(Color(0xFFFFD6B9), RoundedCornerShape(50))
+                    .padding(horizontal = 12.dp, vertical = 5.dp)
+            ) {
+                Text(
+                    text = if (isSingleDay) "Single-day task" else "Period task · $dayCount days",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF682E08)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedButton(
+                    onClick = onDismiss,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(46.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, brown),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = brown)
+                ) {
+                    Text("Cancel", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                }
+
+                Button(
+                    onClick = { onConfirm(title.trim(), priority, startDate, endDate) },
+                    enabled = title.isNotBlank(),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(46.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = brown,
+                        contentColor = Color.White,
+                        disabledContainerColor = brown.copy(alpha = 0.35f),
+                        disabledContentColor = Color.White
+                    )
+                ) {
+                    Text("Confirm", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+    }
+
+    if (pickerTarget == 1) {
+        DatePickerSheet(
+            initial = startDate,
+            onPick = { picked ->
+                startDate = picked
+                if (endDate.isBefore(picked)) endDate = picked
+                pickerTarget = 0
+            },
+            onDismiss = { pickerTarget = 0 }
+        )
+    }
+
+    if (pickerTarget == 2) {
+        DatePickerSheet(
+            initial = endDate,
+            onPick = { picked ->
+                endDate = if (picked.isBefore(startDate)) startDate else picked
+                pickerTarget = 0
+            },
+            onDismiss = { pickerTarget = 0 }
         )
     }
 }
@@ -648,42 +1237,34 @@ fun LectaHeader() {
 @Composable
 fun LectaHome() {
 
-    val today = LocalDate.now()
+    val context = LocalContext.current
+
     val tasks = remember {
-        mutableStateListOf(
-            LectaTask(
-                id = 1,
-                title = "Pre Medical test for semester - 1",
-                source = "Semester-wise-exam.pdf",
-                priority = Priority.Critical,
-                startDate = today.plusDays(3),
-                endDate = today.plusDays(7),
-                confidence = 93,
-                extracted = "Extracted 3hrs ago"
-            ),
-            LectaTask(
-                id = 2,
-                title = "Submit lab record",
-                source = "Lab-notice.pdf",
-                priority = Priority.Medium,
-                startDate = today.plusDays(10),
-                confidence = 88,
-                extracted = "Extracted 1d ago"
-            ),
-            LectaTask(
-                id = 3,
-                title = "Library book return",
-                source = "Library-mail.png",
-                priority = Priority.Low,
-                startDate = today.plusDays(14),
-                endDate = today.plusDays(16),
-                confidence = 81,
-                extracted = "Extracted 2d ago"
-            )
-        )
+        mutableStateListOf<LectaTask>().apply { addAll(TaskStore.load(context)) }
+    }
+
+    LaunchedEffect(Unit) {
+        snapshotFlow { tasks.toList() }.collect { TaskStore.save(context, it) }
+    }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            val now = System.currentTimeMillis()
+            tasks.removeAll { TaskStore.isExpired(it, now) }
+            delay(60_000L)
+        }
     }
 
     val listState = rememberLazyListState()
+
+    var fabExpanded by remember { mutableStateOf(false) }
+    var showAddDialog by remember { mutableStateOf(false) }
+    val plusRotation by animateFloatAsState(
+        targetValue = if (fabExpanded) 90f else 0f,
+        animationSpec = tween(300, easing = FastOutSlowInEasing),
+        label = "plusRotation"
+    )
+
     val sortedTasks = tasks.sortedWith(
         compareBy<LectaTask> { it.done }
             .thenBy { it.priority.ordinal }
@@ -700,15 +1281,28 @@ fun LectaHome() {
         val taskAreaTop = (maxHeight / 2) + 15.dp
         val boxWidth = (maxWidth - 32.dp - 10.dp) / 2
         val boxHeight = boxWidth * (152f / 184f)
+        val noticeTop = taskAreaTop - 30.dp - boxHeight - noticeBoardBottomGap
+
+        val greetingHeight = maxOf(noticeTop - 52.dp - 8.dp, 0.dp)
 
         Box(modifier = Modifier.fillMaxSize()) {
+
+            GreetingSection(
+                tasks = tasks,
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .offset(y = 52.dp)
+                    .padding(horizontal = 16.dp)
+                    .fillMaxWidth()
+                    .height(greetingHeight),
+                showSummary = greetingHeight >= 80.dp
+            )
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp)
-                    .offset(
-                        y = taskAreaTop - 30.dp - boxHeight - noticeBoardBottomGap
-                    ),
+                    .offset(y = noticeTop),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 NoticeBoard(
@@ -734,6 +1328,7 @@ fun LectaHome() {
                     .align(Alignment.TopStart)
                     .padding(start = 16.dp, top = taskAreaTop - 30.dp)
             )
+
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -752,6 +1347,24 @@ fun LectaHome() {
                     ),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
+                    if (sortedTasks.isEmpty()) {
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(160.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "No task left",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.Black.copy(alpha = 0.5f)
+                                )
+                            }
+                        }
+                    }
+
                     items(sortedTasks, key = { it.id }) { task ->
                         TaskBox(
                             task = task,
@@ -761,14 +1374,20 @@ fun LectaHome() {
 
                                 val index = tasks.indexOfFirst { it.id == task.id }
                                 if (index >= 0) {
-                                    tasks[index] = tasks[index].copy(done = !tasks[index].done)
+                                    val current = tasks[index]
+                                    tasks[index] = current.copy(
+                                        done = !current.done,
+                                        completedAt = if (current.done) null else System.currentTimeMillis()
+                                    )
                                 }
+
                                 listState.requestScrollToItem(firstIndex, firstOffset)
                             },
+                            onDelete = { tasks.removeAll { it.id == task.id } },
                             modifier = Modifier.animateItem(
                                 placementSpec = spring(
-                                    dampingRatio = 0.8f,
-                                    stiffness = Spring.StiffnessVeryLow, // lower = slower
+                                    dampingRatio = 0.65f,
+                                    stiffness = Spring.StiffnessLow,
                                     visibilityThreshold = IntOffset.VisibilityThreshold
                                 )
                             )
@@ -779,19 +1398,111 @@ fun LectaHome() {
 
             LectaHeader()
 
-            FloatingActionButton(
-                onClick = {
-                },
+            if (fabExpanded) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) { fabExpanded = false }
+                )
+            }
+
+            Column(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .padding(end = 16.dp, bottom = 16.dp),
-                shape = CircleShape,
-                containerColor = Color(0xFF8A4A25)
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = "Add task",
-                    tint = Color.White
+
+                AnimatedVisibility(
+                    visible = fabExpanded,
+                    enter = fadeIn(tween(200, delayMillis = 60)) +
+                            scaleIn(tween(200, delayMillis = 60)) +
+                            slideInVertically(tween(250, delayMillis = 60)) { it / 2 },
+                    exit = fadeOut(tween(150)) +
+                            scaleOut(tween(150)) +
+                            slideOutVertically(tween(200)) { it / 2 }
+                ) {
+                    SmallFloatingActionButton(
+                        onClick = {
+                            fabExpanded = false
+                            showAddDialog = true
+                        },
+                        modifier = Modifier.padding(bottom = 12.dp),
+                        shape = CircleShape,
+                        containerColor = Color(0xFFFFD6B9),
+                        contentColor = Color(0xFF682E08)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "Add task manually",
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+
+                AnimatedVisibility(
+                    visible = fabExpanded,
+                    enter = fadeIn(tween(200)) +
+                            scaleIn(tween(200)) +
+                            slideInVertically(tween(250)) { it / 2 },
+                    exit = fadeOut(tween(150, delayMillis = 40)) +
+                            scaleOut(tween(150, delayMillis = 40)) +
+                            slideOutVertically(tween(200, delayMillis = 40)) { it / 2 }
+                ) {
+                    SmallFloatingActionButton(
+                        onClick = {
+                            fabExpanded = false
+                        },
+                        modifier = Modifier.padding(bottom = 12.dp),
+                        shape = CircleShape,
+                        containerColor = Color(0xFFFFD6B9),
+                        contentColor = Color(0xFF682E08)
+                    ) {
+                        Text(
+                            text = "AI",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+
+                FloatingActionButton(
+                    onClick = { fabExpanded = !fabExpanded },
+                    shape = CircleShape,
+                    containerColor = Color(0xFF8A4A25)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Add task",
+                        modifier = Modifier.rotate(plusRotation),
+                        tint = Color.White
+                    )
+                }
+            }
+
+            if (showAddDialog) {
+                AddTaskDialog(
+                    onDismiss = { showAddDialog = false },
+                    onConfirm = { title, priority, start, end ->
+                        val nextId = (tasks.maxOfOrNull { it.id } ?: 0) + 1
+                        tasks.add(
+                            LectaTask(
+                                id = nextId,
+                                title = title,
+                                source = "Manual",
+                                priority = priority,
+                                startDate = start,
+                                endDate = end,
+                                confidence = 0,
+                                extracted = "",
+                                manual = true
+                            )
+                        )
+                        showAddDialog = false
+                    }
                 )
             }
         }
