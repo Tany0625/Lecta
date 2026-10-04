@@ -9,6 +9,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -16,6 +17,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DatePicker
@@ -141,13 +143,14 @@ fun DatePickerSheet(
 
 @Composable
 fun AddTaskDialog(
+    initial: LectaTask? = null,
     onDismiss: () -> Unit,
     onConfirm: (String, Priority, LocalDate, LocalDate) -> Unit
 ) {
-    var title by remember { mutableStateOf("") }
-    var priority by remember { mutableStateOf(Priority.Medium) }
-    var startDate by remember { mutableStateOf(LocalDate.now()) }
-    var endDate by remember { mutableStateOf(LocalDate.now()) }
+    var title by remember { mutableStateOf(initial?.title ?: "") }
+    var priority by remember { mutableStateOf(initial?.priority ?: Priority.Medium) }
+    var startDate by remember { mutableStateOf(initial?.startDate ?: LocalDate.now()) }
+    var endDate by remember { mutableStateOf(initial?.endDate ?: LocalDate.now()) }
     var priorityMenu by remember { mutableStateOf(false) }
     var pickerTarget by remember { mutableStateOf(0) }
 
@@ -163,19 +166,20 @@ fun AddTaskDialog(
             modifier = Modifier
                 .padding(horizontal = 24.dp)
                 .fillMaxWidth()
+                .widthIn(max = 440.dp)
                 .background(lectaColors.background, RoundedCornerShape(22.dp))
                 .border(0.2.dp, lectaColors.text, RoundedCornerShape(22.dp))
                 .verticalScroll(rememberScrollState())
                 .padding(20.dp)
         ) {
             Text(
-                text = "New Task",
+                text = if (initial == null) "New Task" else "Edit Task",
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
                 color = lectaColors.text
             )
             Text(
-                text = "Add a task by hand",
+                text = if (initial == null) "Add a task by hand" else "Update the details below",
                 fontSize = 12.sp,
                 color = lectaColors.text.copy(alpha = 0.6f)
             )
@@ -324,7 +328,11 @@ fun AddTaskDialog(
                         disabledContentColor = Color.White
                     )
                 ) {
-                    Text("Confirm", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Text(
+                        if (initial == null) "Confirm" else "Save",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
         }
@@ -398,6 +406,7 @@ fun AiTaskDialog(
             modifier = Modifier
                 .padding(horizontal = 24.dp)
                 .fillMaxWidth()
+                .widthIn(max = 440.dp)
                 .background(lectaColors.background, RoundedCornerShape(22.dp))
                 .border(0.2.dp, lectaColors.text, RoundedCornerShape(22.dp))
                 .verticalScroll(rememberScrollState())
@@ -551,6 +560,7 @@ fun ConfirmDeleteDialog(
             modifier = Modifier
                 .padding(horizontal = 24.dp)
                 .fillMaxWidth()
+                .widthIn(max = 440.dp)
                 .background(lectaColors.background, RoundedCornerShape(22.dp))
                 .border(0.2.dp, lectaColors.text, RoundedCornerShape(22.dp))
                 .padding(20.dp)

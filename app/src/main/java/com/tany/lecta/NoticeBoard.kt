@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -282,6 +283,7 @@ fun AddNoticeDialog(
             modifier = Modifier
                 .padding(horizontal = 24.dp)
                 .fillMaxWidth()
+                .widthIn(max = 440.dp)
                 .background(lectaColors.background, RoundedCornerShape(22.dp))
                 .border(0.2.dp, lectaColors.text, RoundedCornerShape(22.dp))
                 .verticalScroll(rememberScrollState())

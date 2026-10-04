@@ -16,7 +16,10 @@ import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.unit.Density
 import androidx.core.view.WindowCompat
 import com.tany.lecta.ui.theme.LectaBackground
 import com.tany.lecta.ui.theme.LectaTaskBox
@@ -171,6 +174,14 @@ fun LectaAppTheme(content: @Composable () -> Unit) {
     }
 
     val view = LocalView.current
+    val configuration = LocalConfiguration.current
+    val baseDensity = LocalDensity.current
+    val scale = (configuration.screenWidthDp / 360f).coerceIn(0.85f, 1.4f)
+    val scaledDensity = Density(
+        density = baseDensity.density * scale,
+        fontScale = baseDensity.fontScale
+    )
+
     SideEffect {
         val window = (view.context as? Activity)?.window
         if (window != null) {
@@ -182,6 +193,7 @@ fun LectaAppTheme(content: @Composable () -> Unit) {
 
     MaterialTheme(colorScheme = scheme) {
         CompositionLocalProvider(
+            LocalDensity provides scaledDensity,
             LocalContentColor provides palette.text,
             LocalLectaColors provides palette
         ) {

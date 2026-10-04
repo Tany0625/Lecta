@@ -7,34 +7,16 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.VisibilityThreshold
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.SmallFloatingActionButton
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -46,15 +28,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import java.time.LocalDate
 import kotlinx.coroutines.Dispatchers
@@ -149,48 +126,76 @@ fun LectaHome() {
     var fabExpanded by remember { mutableStateOf(false) }
     var showAddDialog by remember { mutableStateOf(false) }
     var showAiDialog by remember { mutableStateOf(false) }
+    var taskToEdit by remember { mutableStateOf<LectaTask?>(null) }
     var menuOpen by remember { mutableStateOf(false) }
 
     BackHandler(enabled = menuOpen) { menuOpen = false }
-    val plusRotation by animateFloatAsState(
-        targetValue = if (fabExpanded) 90f else 0f,
-        animationSpec = tween(300, easing = FastOutSlowInEasing),
-        label = "plusRotation"
-    )
-
     val sortedTasks = tasks.sortedWith(
         compareBy<LectaTask> { it.done }
             .thenBy { it.priority.ordinal }
             .thenBy { it.startDate }
     )
 
-    BoxWithConstraints(
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .background(lectaColors.background)
     ) {
-        val noticeBoardBottomGap = 10.dp
-
-        val taskAreaTop = (maxHeight / 2) + 15.dp
-        val boxWidth = (maxWidth - 32.dp - 10.dp) / 2
-        val boxHeight = boxWidth * (152f / 184f)
-        val noticeTop = taskAreaTop - 30.dp - boxHeight - noticeBoardBottomGap
-
-        val greetingHeight = maxOf(noticeTop - 52.dp - 8.dp, 0.dp)
-
         Box(modifier = Modifier.fillMaxSize()) {
 
-            GreetingSection(
-                tasks = tasks,
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .offset(y = 52.dp)
-                    .padding(horizontal = 16.dp)
-                    .fillMaxWidth()
-                    .height(greetingHeight),
-                userName = userName,
-                showSummary = greetingHeight >= 80.dp
-            )
+            Column(modifier = Modifier.fillMaxSize()) {
+                LectaHeader(
+                    profileImage = profilePainter,
+                    onProfileClick = {
+                        fabExpanded = false
+                        accountOpen = true
+                    },
+                    onMenuClick = { menuOpen = true }
+                )
+
+                GreetingSection(
+                    tasks = tasks,
+                    userName = userName,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 14.dp)
+                )
+
+                HomeBody(
+                    noticeExpanded = noticeExpanded,
+                    tasks = tasks,
+                    sortedTasks = sortedTasks,
+                    notices = sortedNotices,
+                    listState = listState,
+                    onViewAll = {
+                        fabExpanded = false
+                        noticeExpanded = true
+                    },
+                    onToggle = { task ->
+                        val firstIndex = listState.firstVisibleItemIndex
+                        val firstOffset = listState.firstVisibleItemScrollOffset
+
+                        val index = tasks.indexOfFirst { it.id == task.id }
+                        if (index >= 0) {
+                            val current = tasks[index]
+                            tasks[index] = current.copy(
+                                done = !current.done,
+                                completedAt = if (current.done) null else System.currentTimeMillis()
+                            )
+                        }
+
+                        listState.requestScrollToItem(firstIndex, firstOffset)
+                    },
+                    onEdit = { task -> taskToEdit = task },
+                    onDelete = { task -> tasks.removeAll { it.id == task.id } },
+                    onAddNotice = { showNoticeDialog = true },
+                    onDeleteNotice = { notice -> noticeToDelete = notice },
+                    onCloseNotices = { noticeExpanded = false },
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                )
+            }
 
             AnimatedVisibility(
                 visible = !noticeExpanded,
@@ -198,227 +203,20 @@ fun LectaHome() {
                 enter = fadeIn(tween(300)),
                 exit = fadeOut(tween(250))
             ) {
-                Box(modifier = Modifier.fillMaxSize()) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                        .offset(y = noticeTop),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    NoticeBoard(
-                        notices = sortedNotices,
-                        onViewAll = {
-                            fabExpanded = false
-                            noticeExpanded = true
-                        },
-                        modifier = Modifier
-                            .weight(1f)
-                            .aspectRatio(184f / 152f)
-                    )
-
-                    CalendarBox(
-                        tasks = tasks,
-                        sundayStart = AppSettings.sundayStart,
-                        modifier = Modifier
-                            .weight(1f)
-                            .aspectRatio(184f / 152f)
-                    )
-                }
-
-                Text(
-                    text = "Upcoming Tasks",
-                    color = lectaColors.text,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(start = 16.dp, top = taskAreaTop - 30.dp)
-                )
-
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(this@BoxWithConstraints.maxHeight - taskAreaTop)
-                        .align(Alignment.TopStart)
-                        .offset(y = taskAreaTop)
-                        .clipToBounds()
-                ) {
-                    LazyColumn(
-                        state = listState,
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(
-                            start = 16.dp,
-                            end = 16.dp,
-                            bottom = 5.dp
-                        ),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        if (sortedTasks.isEmpty()) {
-                            item {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(160.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = "No task left",
-                                        fontSize = 16.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = lectaColors.text.copy(alpha = 0.5f)
-                                    )
-                                }
-                            }
-                        }
-
-                        items(sortedTasks, key = { it.id }) { task ->
-                            TaskBox(
-                                task = task,
-                                onToggle = {
-                                    val firstIndex = listState.firstVisibleItemIndex
-                                    val firstOffset = listState.firstVisibleItemScrollOffset
-
-                                    val index = tasks.indexOfFirst { it.id == task.id }
-                                    if (index >= 0) {
-                                        val current = tasks[index]
-                                        tasks[index] = current.copy(
-                                            done = !current.done,
-                                            completedAt = if (current.done) null else System.currentTimeMillis()
-                                        )
-                                    }
-
-                                    listState.requestScrollToItem(firstIndex, firstOffset)
-                                },
-                                onDelete = { tasks.removeAll { it.id == task.id } },
-                                modifier = Modifier.animateItem(
-                                    placementSpec = spring(
-                                        dampingRatio = 0.65f,
-                                        stiffness = Spring.StiffnessLow,
-                                        visibilityThreshold = IntOffset.VisibilityThreshold
-                                    )
-                                )
-                            )
-                        }
+                AddMenu(
+                    expanded = fabExpanded,
+                    onToggle = { fabExpanded = !fabExpanded },
+                    onDismiss = { fabExpanded = false },
+                    onManual = {
+                        fabExpanded = false
+                        showAddDialog = true
+                    },
+                    onAi = {
+                        fabExpanded = false
+                        showAiDialog = true
                     }
-                }
-
-                if (fabExpanded) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null
-                            ) { fabExpanded = false }
-                    )
-                }
-
-                Column(
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(end = 16.dp, bottom = 16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-
-                    AnimatedVisibility(
-                        visible = fabExpanded,
-                        enter = fadeIn(tween(200, delayMillis = 60)) +
-                                scaleIn(tween(200, delayMillis = 60)) +
-                                slideInVertically(tween(250, delayMillis = 60)) { it / 2 },
-                        exit = fadeOut(tween(150)) +
-                                scaleOut(tween(150)) +
-                                slideOutVertically(tween(200)) { it / 2 }
-                    ) {
-                        SmallFloatingActionButton(
-                            onClick = {
-                                fabExpanded = false
-                                showAddDialog = true
-                            },
-                            modifier = Modifier.padding(bottom = 12.dp),
-                            shape = CircleShape,
-                            containerColor = lectaColors.card,
-                            contentColor = lectaColors.accentDark
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Edit,
-                                contentDescription = "Add task manually",
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                    }
-
-                    AnimatedVisibility(
-                        visible = fabExpanded,
-                        enter = fadeIn(tween(200)) +
-                                scaleIn(tween(200)) +
-                                slideInVertically(tween(250)) { it / 2 },
-                        exit = fadeOut(tween(150, delayMillis = 40)) +
-                                scaleOut(tween(150, delayMillis = 40)) +
-                                slideOutVertically(tween(200, delayMillis = 40)) { it / 2 }
-                    ) {
-                        SmallFloatingActionButton(
-                            onClick = {
-                                fabExpanded = false
-                                showAiDialog = true
-                            },
-                            modifier = Modifier.padding(bottom = 12.dp),
-                            shape = CircleShape,
-                            containerColor = lectaColors.card,
-                            contentColor = lectaColors.accentDark
-                        ) {
-                            Text(
-                                text = "AI",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-
-                    FloatingActionButton(
-                        onClick = { fabExpanded = !fabExpanded },
-                        shape = CircleShape,
-                        containerColor = lectaColors.accent
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = "Add task",
-                            modifier = Modifier.rotate(plusRotation),
-                            tint = Color.White
-                        )
-                    }
-                }
-                }
-            }
-
-            AnimatedVisibility(
-                visible = noticeExpanded,
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .offset(y = noticeTop),
-                enter = fadeIn(tween(300)) + slideInVertically(tween(300)) { it / 10 },
-                exit = fadeOut(tween(200))
-            ) {
-                NoticeBoardFull(
-                    notices = sortedNotices,
-                    onAdd = { showNoticeDialog = true },
-                    onDelete = { notice -> noticeToDelete = notice },
-                    onClose = { noticeExpanded = false },
-                    modifier = Modifier
-                        .padding(horizontal = 16.dp)
-                        .fillMaxWidth()
-                        .height(this@BoxWithConstraints.maxHeight - noticeTop - 16.dp)
                 )
             }
-
-            LectaHeader(
-                profileImage = profilePainter,
-                onProfileClick = {
-                    fabExpanded = false
-                    accountOpen = true
-                },
-                onMenuClick = { menuOpen = true }
-            )
 
             AnimatedVisibility(
                 visible = accountOpen,
@@ -555,6 +353,25 @@ fun LectaHome() {
                 AiTaskDialog(
                     onDismiss = { showAiDialog = false },
                     onConfirm = { _, _ -> showAiDialog = false }
+                )
+            }
+
+            taskToEdit?.let { target ->
+                AddTaskDialog(
+                    initial = target,
+                    onDismiss = { taskToEdit = null },
+                    onConfirm = { title, priority, start, end ->
+                        val index = tasks.indexOfFirst { it.id == target.id }
+                        if (index >= 0) {
+                            tasks[index] = tasks[index].copy(
+                                title = title,
+                                priority = priority,
+                                startDate = start,
+                                endDate = end
+                            )
+                        }
+                        taskToEdit = null
+                    }
                 )
             }
 

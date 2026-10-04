@@ -16,7 +16,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        hideStatusBar()
+        hideSystemBars()
 
         AppSettings.load(this)
 
@@ -29,16 +29,18 @@ class MainActivity : ComponentActivity() {
         }
 
         ViewCompat.setOnApplyWindowInsetsListener(window.decorView) { view, insets ->
-            if (insets.isVisible(WindowInsetsCompat.Type.statusBars())) {
-                view.post { hideStatusBar() }
+            if (insets.isVisible(WindowInsetsCompat.Type.statusBars()) ||
+                insets.isVisible(WindowInsetsCompat.Type.navigationBars())
+            ) {
+                view.post { hideSystemBars() }
             }
             ViewCompat.onApplyWindowInsets(view, insets)
         }
     }
 
-    private fun hideStatusBar() {
+    private fun hideSystemBars() {
         WindowCompat.getInsetsController(window, window.decorView).apply {
-            hide(WindowInsetsCompat.Type.statusBars())
+            hide(WindowInsetsCompat.Type.systemBars())
             systemBarsBehavior =
                 WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         }
@@ -46,11 +48,11 @@ class MainActivity : ComponentActivity() {
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
-        if (hasFocus) hideStatusBar()
+        if (hasFocus) hideSystemBars()
     }
 
     override fun onResume() {
         super.onResume()
-        hideStatusBar()
+        hideSystemBars()
     }
 }
