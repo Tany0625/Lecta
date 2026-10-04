@@ -1,5 +1,6 @@
 package com.tany.lecta
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -14,7 +15,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -43,19 +45,12 @@ fun AboutScreen(
 
         Spacer(modifier = Modifier.height(28.dp))
 
-        Box(
-            modifier = Modifier
-                .size(88.dp)
-                .background(lectaColors.accent, CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = AppInfo.APP_NAME.first().toString(),
-                fontSize = 42.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White
-            )
-        }
+        Image(
+            painter = painterResource(R.drawable.lecta_logo),
+            contentDescription = "Lecta logo",
+            contentScale = ContentScale.Fit,
+            modifier = Modifier.size(96.dp)
+        )
 
         Spacer(modifier = Modifier.height(14.dp))
 

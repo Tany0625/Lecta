@@ -308,6 +308,39 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.height(20.dp))
 
+        SettingsSectionTitle("Reminders")
+        SettingsCard {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Deadline reminders",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = lectaColors.text
+                    )
+                    Text(
+                        text = "Notifies you 48, 24, 12 and 3 hours before a task is due. Tasks are due at 9 PM on their end date.",
+                        fontSize = 12.sp,
+                        color = lectaColors.text.copy(alpha = 0.6f)
+                    )
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Switch(
+                    checked = AppSettings.reminders,
+                    onCheckedChange = { AppSettings.setReminders(context, it) },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Color.White,
+                        checkedTrackColor = lectaColors.accent,
+                        uncheckedThumbColor = lectaColors.text.copy(alpha = 0.6f),
+                        uncheckedTrackColor = lectaColors.surface,
+                        uncheckedBorderColor = lectaColors.text.copy(alpha = 0.4f)
+                    )
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
+
         SettingsSectionTitle("Calendar")
         SettingsCard {
             Text(

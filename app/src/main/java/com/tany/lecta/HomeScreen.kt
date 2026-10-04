@@ -1,5 +1,7 @@
 package com.tany.lecta
 
+import android.content.pm.PackageManager
+import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -53,6 +55,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import java.time.LocalDate
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -87,7 +90,26 @@ fun LectaHome() {
     }
 
     LaunchedEffect(Unit) {
-        snapshotFlow { tasks.toList() }.collect { TaskStore.save(context, it) }
+        snapshotFlow { tasks.toList() }.collect {
+            TaskStore.save(context, it)
+            ReminderScheduler.sync(context, it)
+        }
+    }
+
+    val notificationPermission = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) ReminderScheduler.sync(context, tasks.toList())
+    }
+
+    LaunchedEffect(Unit) {
+        ReminderScheduler.ensureChannel(context)
+        if (Build.VERSION.SDK_INT >= 33 &&
+            ContextCompat.checkSelfPermission(context, "android.permission.POST_NOTIFICATIONS") !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            notificationPermission.launch("android.permission.POST_NOTIFICATIONS")
+        }
     }
 
     LaunchedEffect(Unit) {

@@ -13,6 +13,7 @@ object AppSettings {
     var cleanupHours by mutableStateOf(24)
     var haptics by mutableStateOf(true)
     var sundayStart by mutableStateOf(false)
+    var reminders by mutableStateOf(true)
 
     fun load(context: Context) {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -20,6 +21,7 @@ object AppSettings {
         cleanupHours = prefs.getInt("cleanup_hours", 24)
         haptics = prefs.getBoolean("haptics", true)
         sundayStart = prefs.getBoolean("sunday_start", false)
+        reminders = prefs.getBoolean("reminders", true)
         applyCleanup()
     }
 
@@ -30,6 +32,7 @@ object AppSettings {
             .putInt("cleanup_hours", cleanupHours)
             .putBoolean("haptics", haptics)
             .putBoolean("sunday_start", sundayStart)
+            .putBoolean("reminders", reminders)
             .apply()
     }
 
@@ -51,6 +54,12 @@ object AppSettings {
     fun setHaptics(context: Context, enabled: Boolean) {
         haptics = enabled
         save(context)
+    }
+
+    fun setReminders(context: Context, enabled: Boolean) {
+        reminders = enabled
+        save(context)
+        ReminderScheduler.sync(context, TaskStore.load(context))
     }
 
     fun setSundayStart(context: Context, enabled: Boolean) {

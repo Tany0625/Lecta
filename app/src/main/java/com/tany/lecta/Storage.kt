@@ -20,6 +20,18 @@ object ProfileStore {
     private const val IMAGE_FILE = "profile.jpg"
     const val DEFAULT_NAME = "User"
 
+    fun isOnboarded(context: Context): Boolean {
+        return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getBoolean("onboarded", false)
+    }
+
+    fun setOnboarded(context: Context) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean("onboarded", true)
+            .apply()
+    }
+
     fun loadName(context: Context): String {
         val saved = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .getString(NAME_KEY, null)

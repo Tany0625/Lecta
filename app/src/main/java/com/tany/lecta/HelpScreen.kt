@@ -252,6 +252,10 @@ fun HelpScreen(
                 "Tap View all on the Notice Board, then tap Add notice at the bottom."
             )
             FaqItem(
+                "When do I get reminders?",
+                "Lecta sends a notification 48, 24, 12 and 3 hours before a task is due. You can switch this off in Settings."
+            )
+            FaqItem(
                 "How do I change my name or photo?",
                 "Open the menu or tap your picture at the top right, then choose Account."
             )
