@@ -60,6 +60,14 @@ The UI is designed primarily for **Android phones**.
 
 ---
 
+## Screenshots
+
+| First login | Home screen | Theme |
+|:---:|:---:|:---:|
+| <img src="docs/screenshots/firstlogin.jpg" alt="Lecta first login" width="240"> | <img src="docs/screenshots/homescreen.jpg" alt="Lecta home screen" width="240"> | <img src="docs/screenshots/theme.jpg" alt="Lecta theme" width="240"> |
+
+---
+
 ## How Lecta will work (planned)
 
 1. The student provides a college notice.
