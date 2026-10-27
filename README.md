@@ -8,7 +8,6 @@
 
 Lecta is an Android app that helps college students turn official notices into clear, trackable tasks. This repository currently contains the **completed Android UI**. The backend and AI processing are **planned and not yet implemented**.
 
-Built for the **NVIDIA × Nebius Global AI Hackathon**.
 
 ---
 
