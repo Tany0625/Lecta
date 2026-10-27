@@ -6,7 +6,7 @@
 ![Kotlin](https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7F52FF)
 ![Status](https://img.shields.io/badge/status-UI%20complete%20%7C%20backend%20in%20development-orange)
 
-Lecta is an Android app that helps college students turn official notices into clear, trackable tasks. This repository currently contains the **completed Android UI**. The backend and AI processing are **planned and not yet implemented**.
+Lecta is an Android app that helps college students turn official notices into clear, trackable tasks. This repository currently contains the **completed Android UI**. The backend and AI processing are **in active development** for the **MLH Hacktoberfest** hackathon.
 
 
 ---
@@ -28,12 +28,12 @@ Lecta is designed so that a student can provide a notice, have it understood by 
 | Area | Status |
 |---|---|
 | Android UI (Kotlin + Jetpack Compose) | ✅ Implemented |
-| Backend (FastAPI) | 🛠 Planned / In development |
-| PDF text extraction | 🛠 Planned |
-| Nebius AI integration | 🛠 Planned |
+| Backend (FastAPI + Pydantic) | 🛠 In active development |
+| PDF text extraction | 🛠 Planned / In progress |
+| AI Integration (Google Gemma 4) | 🛠 In active development |
 | Android ↔ backend communication | 🛠 Planned |
 
-> **This repository represents the completed frontend/UI stage of Lecta.** The app does not yet process notices with AI and does not yet communicate with a backend. Everything under "How Lecta will work" and "Planned backend" describes the intended design, not working functionality.
+> **This repository represents the completed frontend/UI stage of Lecta.** The backend logic—using **Google's Gemma 4** via an OpenAI-compatible interface—is being developed as the main project submission for MLH Hacktoberfest.
 
 ---
 
@@ -67,39 +67,38 @@ The UI is designed primarily for **Android phones**.
 
 ---
 
-## How Lecta will work (planned)
+## How Lecta will work
 
 1. The student provides a college notice.
-2. Lecta processes the notice.
-3. AI understands the notice.
-4. Important information is extracted.
-5. The student receives a structured result.
-6. If the notice contains an actionable task, the student can add it to their task list.
-7. The student tracks the task and its deadline.
+2. Lecta backend extracts the text.
+3. **Google Gemma 4** processes and understands the notice.
+4. Important information is structured into JSON using Pydantic schemas.
+5. The student receives a clear, structured task on the app.
+6. The student tracks the task and its deadline on their dashboard/calendar.
 
 ### Planned inputs
 
-The immediate backend milestone is **PDF notices**. Screenshots/images and pasted notice text are possible future inputs; none of these are processed yet.
+The immediate backend milestone is **PDF notices**. Screenshots/images and pasted notice text are possible future inputs.
 
 ---
 
-## Architecture (planned)
+## Architecture
 
 ```text
 Android App
       │
       │ HTTPS
       ▼
-Lecta Backend
+Lecta Backend (FastAPI)
       │
       ▼
-Nebius Token Factory
+Gemma 4 Client
       │
       ▼
-AI Model
+Google Gemma 4 AI Model (via Ollama / Cloud)
       │
       ▼
-Structured JSON
+Structured JSON (Pydantic Schema)
       │
       ▼
 Android App
@@ -112,17 +111,18 @@ LectaTask
 
 ## Technology stack
 
-**Android (current)**
+**Android (Frontend)**
 - Kotlin
 - Jetpack Compose
 - Material 3
 - Android Studio, Gradle, Android SDK
 
-**Backend (planned)**
-- Python
-- FastAPI
-- PDF text extraction
-- Nebius Token Factory / Nebius AI
+**Backend (In Development)**
+- Python 3.12+
+- FastAPI & Uvicorn
+- PDF text extraction (`PyPDF2` / `pdfplumber`)
+- **Google Gemma 4** (running locally via Ollama during development, deployable to cloud)
+- Pydantic (data validation and structured JSON output)
 
 ---
 
@@ -167,7 +167,7 @@ app/
 └── ...
 ```
 
-The project is organized by screen (`*Screen.kt`), reusable UI components (task, calendar, notice board, dialogs, header/menu), app-level setup (`MainActivity`, `AppRoot`), data and storage (`Models`, `Storage`), and theming (`ThemeManager`, `ui/theme/`).
+The app is structured cleanly into modular Jetpack Compose screens, reusable UI components, local storage models, and theme management.
 
 ---
 
@@ -177,39 +177,35 @@ The task model includes concepts such as ID, title, source, priority, start date
 
 ---
 
-## Planned backend
+## Backend & Gemma 4 Integration
 
-> **Status: Planned / In Development.** Nothing in this section is implemented yet.
+> **Status: In Active Development.**
 
-The backend will eventually:
+The backend pipeline performs the following steps:
 
-1. Receive a PDF notice.
-2. Extract text from the PDF.
-3. Send the extracted content to Nebius AI.
-4. Ask the AI to understand the notice.
-5. Extract structured information.
-6. Validate the AI response.
-7. Return JSON to the Android app.
+1. Receives a PDF notice uploaded from the Android app.
+2. Extracts raw text content from the PDF.
+3. Sends the extracted text to **Google Gemma 4** with deterministic system prompts (`temperature=0.2`).
+4. Forces the model output into validated Pydantic JSON schemas.
+5. Returns structured task objects to the Android app.
 
 ```text
 PDF Notice
-   ↓
+    ↓
 Lecta Backend
-   ↓
+    ↓
 Text Extraction
-   ↓
-Nebius AI
-   ↓
-Structured Information
-   ↓
-Android App
-   ↓
-Task
+    ↓
+Google Gemma 4 AI
+    ↓
+Structured JSON Task
+    ↓
+Android App UI
 ```
 
-### Planned response format
+### Response format
 
-An illustrative example of what a structured response may look like. **This is a planned format, not a currently implemented API.**
+Structured JSON output schema returned by the Gemma 4 pipeline:
 
 ```json
 {
@@ -225,48 +221,26 @@ An illustrative example of what a structured response may look like. **This is a
 
 ---
 
-## Nebius AI integration (planned)
+## Hackathon Context
 
-Lecta's AI processing is planned to use **Nebius AI / Nebius Token Factory**. The integration has **not been implemented yet**.
-
-The Nebius API key will live only on the backend. It must **never** be embedded in the Android application or committed to this repository.
+Lecta is competing in **MLH Hacktoberfest** with a target track focused on **Best Use of Google Gemma 4**. 
+- **Frontend MVP:** Completed Jetpack Compose Android app.
+- **Hackathon Scope:** Building, testing, and integrating the complete FastAPI backend powered by **Google Gemma 4**.
 
 ---
 
-## Roadmap
+## Security and API keys
 
-### Completed
-- [x] Android UI
-- [x] Core frontend structure
-- [x] Task UI
-- [x] Calendar UI
-- [x] Notice Board UI
-- [x] Navigation and supporting screens
-- [x] GitHub repository setup
-
-### Next
-- [ ] Create the backend
-- [ ] FastAPI endpoint
-- [ ] PDF text extraction
-- [ ] Nebius integration
-- [ ] Structured AI output
-- [ ] Backend validation
-- [ ] Android networking
-- [ ] Connect AI results to Lecta tasks
-- [ ] Testing
-- [ ] Final hackathon polish
-
-### Future ideas
-- Screenshot/image notice input
-- Pasted notice text input
+- This repository contains no API keys, secrets, keystores, or `.env` files.
+- `local.properties`, build outputs, virtual environments (`venv/`), and `.env` configuration files are excluded through `.gitignore`.
+- When deployed, environment configurations and API endpoints are injected via server environment variables.
 
 ---
 
 ## Running the project
 
-The app currently runs on its own; no backend or API key is needed.
-
-**Requirements:** a recent version of Android Studio with the Android SDK installed, and an Android emulator or a physical Android device. Check `app/build.gradle.kts` for the project's SDK and Java settings.
+### Android App
+**Requirements:** Android Studio, Android SDK, and an Android emulator or physical device.
 
 ```bash
 git clone git@github.com:Tany0625/Lecta.git
@@ -274,28 +248,11 @@ cd Lecta
 ```
 
 1. Open Android Studio and choose **Open**, then select the `Lecta` folder.
-2. Wait for the Gradle sync to finish.
-3. Select an emulator or a connected device.
-4. Click **Run**.
-
-Android Studio generates `local.properties` locally (it holds your machine's SDK path). It is listed in `.gitignore` and **should not be committed**.
-
----
-
-## Security and API keys
-
-- This repository contains no API keys, secrets, keystores, or `.env` files.
-- `local.properties`, build outputs, and IDE files are excluded through `.gitignore`.
-- When the backend is added, the Nebius API key will be stored in backend configuration only, never in the Android app and never in Git.
-
----
-
-## Hackathon
-
-Lecta is being developed for the **NVIDIA × Nebius Global AI Hackathon** (deadline: **30 October 2026**). The Android UI is complete; the backend and Nebius integration are the next milestones.
+2. Wait for Gradle sync to complete.
+3. Run the app on an emulator or connected device.
 
 ---
 
 ## Author
 
-Created by [Tany0625](https://github.com/Tany0625).
+Created by [Tany0625](https://github.com/Tany0625). {Team innovation vultures}
