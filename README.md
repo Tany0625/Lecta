@@ -6,7 +6,7 @@
 ![Kotlin](https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7F52FF)
 ![Status](https://img.shields.io/badge/status-UI%20complete%20%7C%20backend%20in%20development-orange)
 
-Lecta is an Android app that helps college students turn official notices into clear, trackable tasks. This repository currently contains the **completed Android UI**. The backend and AI processing are **in active development** for the **MLH Hacktoberfest** hackathon.
+Lecta is an Android app that helps college students turn official notices into clear, trackable tasks. This repository currently contains the **completed Android UI**. The backend and AI processing are **in active development**.
 
 
 ---
@@ -30,10 +30,10 @@ Lecta is designed so that a student can provide a notice, have it understood by 
 | Android UI (Kotlin + Jetpack Compose) | ✅ Implemented |
 | Backend (FastAPI + Pydantic) | 🛠 In active development |
 | PDF text extraction | 🛠 Planned / In progress |
-| AI Integration (Google Gemma 4) | 🛠 In active development |
+| AI Integration (LLM) | 🛠 In active development |
 | Android ↔ backend communication | 🛠 Planned |
 
-> **This repository represents the completed frontend/UI stage of Lecta.** The backend logic—using **Google's Gemma 4** via an OpenAI-compatible interface—is being developed as the main project submission for MLH Hacktoberfest.
+> **This repository represents the completed frontend/UI stage of Lecta.** The backend logic—using an AI language model via an OpenAI-compatible interface—is currently being developed.
 
 ---
 
@@ -71,7 +71,7 @@ The UI is designed primarily for **Android phones**.
 
 1. The student provides a college notice.
 2. Lecta backend extracts the text.
-3. **Google Gemma 4** processes and understands the notice.
+3. An **AI language model** processes and understands the notice.
 4. Important information is structured into JSON using Pydantic schemas.
 5. The student receives a clear, structured task on the app.
 6. The student tracks the task and its deadline on their dashboard/calendar.
@@ -92,10 +92,10 @@ Android App
 Lecta Backend (FastAPI)
       │
       ▼
-Gemma 4 Client
+LLM Client
       │
       ▼
-Google Gemma 4 AI Model (via Ollama / Cloud)
+AI Model (via Ollama / Cloud)
       │
       ▼
 Structured JSON (Pydantic Schema)
@@ -121,7 +121,7 @@ LectaTask
 - Python 3.12+
 - FastAPI & Uvicorn
 - PDF text extraction (`PyPDF2` / `pdfplumber`)
-- **Google Gemma 4** (running locally via Ollama during development, deployable to cloud)
+- **Large language model** (running locally via Ollama during development, deployable to cloud)
 - Pydantic (data validation and structured JSON output)
 
 ---
@@ -177,7 +177,7 @@ The task model includes concepts such as ID, title, source, priority, start date
 
 ---
 
-## Backend & Gemma 4 Integration
+## Backend & AI Integration
 
 > **Status: In Active Development.**
 
@@ -185,7 +185,7 @@ The backend pipeline performs the following steps:
 
 1. Receives a PDF notice uploaded from the Android app.
 2. Extracts raw text content from the PDF.
-3. Sends the extracted text to **Google Gemma 4** with deterministic system prompts (`temperature=0.2`).
+3. Sends the extracted text to the **AI model** with deterministic system prompts (`temperature=0.2`).
 4. Forces the model output into validated Pydantic JSON schemas.
 5. Returns structured task objects to the Android app.
 
@@ -196,7 +196,7 @@ Lecta Backend
     ↓
 Text Extraction
     ↓
-Google Gemma 4 AI
+AI Model
     ↓
 Structured JSON Task
     ↓
@@ -205,7 +205,7 @@ Android App UI
 
 ### Response format
 
-Structured JSON output schema returned by the Gemma 4 pipeline:
+Structured JSON output schema returned by the AI pipeline:
 
 ```json
 {
@@ -221,11 +221,10 @@ Structured JSON output schema returned by the Gemma 4 pipeline:
 
 ---
 
-## Hackathon Context
+## Project Scope
 
-Lecta is competing in **MLH Hacktoberfest** with a target track focused on **Best Use of Google Gemma 4**. 
 - **Frontend MVP:** Completed Jetpack Compose Android app.
-- **Hackathon Scope:** Building, testing, and integrating the complete FastAPI backend powered by **Google Gemma 4**.
+- **Backend Scope:** Building, testing, and integrating the complete FastAPI backend powered by an AI language model.
 
 ---
 
