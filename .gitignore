@@ -21,3 +21,11 @@ Thumbs.db
 captures/
 .externalNativeBuild/
 .cxx/
+
+# Signing keys and release builds
+*.jks
+*.keystore
+keystore.properties
+*.apk
+*.aab
+app/release/

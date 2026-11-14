@@ -2,6 +2,7 @@ package com.tany.lecta
 
 import android.content.pm.PackageManager
 import android.os.Build
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -126,8 +127,14 @@ fun LectaHome() {
     var fabExpanded by remember { mutableStateOf(false) }
     var showAddDialog by remember { mutableStateOf(false) }
     var showAiDialog by remember { mutableStateOf(false) }
+    var aiLoading by remember { mutableStateOf(false) }
+    var aiError by remember { mutableStateOf<String?>(null) }
     var taskToEdit by remember { mutableStateOf<LectaTask?>(null) }
     var menuOpen by remember { mutableStateOf(false) }
+
+    LaunchedEffect(showAiDialog) {
+        if (showAiDialog) NoticeApi.warmUp()
+    }
 
     BackHandler(enabled = menuOpen) { menuOpen = false }
     val sortedTasks = tasks.sortedWith(
@@ -351,8 +358,82 @@ fun LectaHome() {
 
             if (showAiDialog) {
                 AiTaskDialog(
-                    onDismiss = { showAiDialog = false },
-                    onConfirm = { _, _ -> showAiDialog = false }
+                    loading = aiLoading,
+                    errorMessage = aiError,
+                    onDismiss = {
+                        if (!aiLoading) {
+                            showAiDialog = false
+                            aiError = null
+                        }
+                    },
+                    onConfirm = { uri, fileName ->
+                        aiLoading = true
+                        aiError = null
+                        scope.launch {
+                            try {
+                                val items = NoticeApi.analyzeFile(context, uri, fileName)
+                                var taskCount = 0
+                                var noticeCount = 0
+                                var skipped = 0
+
+                                items.forEach { item ->
+                                    if (item.kind == "task") {
+                                        val title = item.task ?: "Untitled task"
+                                        val start = item.startDate ?: LocalDate.now()
+                                        val alreadyThere = tasks.any {
+                                            it.title.equals(title, ignoreCase = true) && it.startDate == start
+                                        }
+                                        if (alreadyThere) {
+                                            skipped++
+                                        } else {
+                                            val nextId = (tasks.maxOfOrNull { it.id } ?: 0) + 1
+                                            tasks.add(
+                                                LectaTask(
+                                                    id = nextId,
+                                                    title = title,
+                                                    source = fileName,
+                                                    priority = item.priority,
+                                                    startDate = start,
+                                                    endDate = item.endDate ?: start,
+                                                    confidence = item.confidence,
+                                                    extracted = "",
+                                                    manual = false
+                                                )
+                                            )
+                                            taskCount++
+                                        }
+                                    } else if (!item.summary.isNullOrBlank()) {
+                                        val alreadyThere = notices.any { it.text == item.summary }
+                                        if (alreadyThere) {
+                                            skipped++
+                                        } else {
+                                            val nextId = (notices.maxOfOrNull { it.id } ?: 0) + 1
+                                            notices.add(
+                                                LectaNotice(
+                                                    id = nextId,
+                                                    text = item.summary,
+                                                    date = LocalDate.now()
+                                                )
+                                            )
+                                            noticeCount++
+                                        }
+                                    }
+                                }
+
+                                showAiDialog = false
+                                val skippedText = if (skipped > 0) ". $skipped already in your list." else ""
+                                Toast.makeText(
+                                    context,
+                                    "Added $taskCount task(s) and $noticeCount notice(s)$skippedText",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            } catch (e: Exception) {
+                                aiError = e.message ?: "Something went wrong. Please try again."
+                            } finally {
+                                aiLoading = false
+                            }
+                        }
+                    }
                 )
             }
 

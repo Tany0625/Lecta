@@ -375,8 +375,10 @@ fun fileNameOf(context: Context, uri: Uri): String {
 @Composable
 fun AiTaskDialog(
     onDismiss: () -> Unit,
-    onConfirm: (Uri, String) -> Unit
-) {
+    onConfirm: (Uri, String) -> Unit,
+    loading: Boolean = false,
+    errorMessage: String? = null
+){
     val context = LocalContext.current
     val brown = lectaColors.accent
     var pickedUri by remember { mutableStateOf<Uri?>(null) }
@@ -387,13 +389,13 @@ fun AiTaskDialog(
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
             val type = context.contentResolver.getType(uri) ?: ""
-            if (type == "application/pdf" || type.startsWith("image/")) {
+            if (type == "application/pdf") {
                 pickedUri = uri
                 pickedName = fileNameOf(context, uri)
                 pickedType = if (type == "application/pdf") "PDF" else "IMG"
                 error = null
             } else {
-                error = "Only PDF or image files are allowed"
+                error = "Only PDF files are supported for now"
             }
         }
     }
@@ -419,9 +421,14 @@ fun AiTaskDialog(
                 color = lectaColors.text
             )
             Text(
-                text = "Upload a document and AI will find the task",
+                text = "Upload a PDF notice and AI will find the tasks",
                 fontSize = 12.sp,
                 color = lectaColors.text.copy(alpha = 0.6f)
+            )
+            Text(
+                text = "The text of your PDF is sent to a server and an AI service to be read. Don't upload anything private.",
+                fontSize = 11.sp,
+                color = lectaColors.text.copy(alpha = 0.5f)
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -434,7 +441,7 @@ fun AiTaskDialog(
                     .clip(RoundedCornerShape(16.dp))
                     .background(lectaColors.surface)
                     .border(1.5.dp, brown.copy(alpha = 0.6f), RoundedCornerShape(16.dp))
-                    .clickable { launcher.launch(arrayOf("application/pdf", "image/*")) }
+                    .clickable { launcher.launch(arrayOf("application/pdf")) }
                     .padding(16.dp),
                 contentAlignment = Alignment.Center
             ) {
@@ -471,7 +478,7 @@ fun AiTaskDialog(
                             color = lectaColors.text
                         )
                         Text(
-                            text = "PDF or image",
+                            text = "PDF only",
                             fontSize = 11.sp,
                             color = lectaColors.text.copy(alpha = 0.6f)
                         )
@@ -495,11 +502,23 @@ fun AiTaskDialog(
             }
 
             if (error != null) {
+                val shownError = error ?: errorMessage
+                if (shownError != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = shownError,
+                        fontSize = 12.sp,
+                        color = Color(0xFFFF3B30)
+                    )
+                }
+            }
+
+            if (loading) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = error ?: "",
+                    text = "This can take up to a minute if the server was asleep.",
                     fontSize = 12.sp,
-                    color = Color(0xFFFF3B30)
+                    color = lectaColors.text.copy(alpha = 0.6f)
                 )
             }
 
@@ -508,6 +527,7 @@ fun AiTaskDialog(
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 OutlinedButton(
                     onClick = onDismiss,
+                    enabled = !loading,
                     modifier = Modifier
                         .weight(1f)
                         .height(46.dp),
@@ -523,7 +543,7 @@ fun AiTaskDialog(
                         val uri = pickedUri
                         if (uri != null) onConfirm(uri, pickedName)
                     },
-                    enabled = pickedUri != null,
+                    enabled = pickedUri != null && !loading,
                     modifier = Modifier
                         .weight(1f)
                         .height(46.dp),
@@ -535,7 +555,7 @@ fun AiTaskDialog(
                         disabledContentColor = Color.White
                     )
                 ) {
-                    Text("Confirm", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Text(if (loading) "Reading..." else "Confirm", fontSize = 14.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }

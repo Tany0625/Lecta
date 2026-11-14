@@ -335,7 +335,7 @@ fun TaskBox(
                     Spacer(modifier = Modifier.weight(1f))
 
                     Text(
-                        text = if (task.manual) "Entered ${agoText(task.createdAt)}" else task.extracted,
+                        text = if (task.manual) "Entered ${agoText(task.createdAt)}" else "Extracted ${agoText(task.createdAt)}",
                         color = lectaColors.text.copy(alpha = 0.5f),
                         fontSize = 10.sp,
                         lineHeight = 10.sp,
