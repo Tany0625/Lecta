@@ -151,4 +151,4 @@ git clone https://github.com/Tany0625/Lecta.git
 
 ## Author
 
-Created by [Tany0625](https://github.com/Tany0625). {Team innovation vultures}
+Created by [Tany0625](https://github.com/Tany0625).
